@@ -33,6 +33,13 @@ OVERALL_END_DATE = date(2026, 7, 14)
 SEASON_MONTHS = range(3, 11)  # 3월~10월
 SLEEP_SECONDS_BETWEEN_REQUESTS = 5
 
+# Baseball Savant occasionally returns a malformed/empty CSV for a single
+# day inside pybaseball's internal per-day parallel fetch, which raises
+# instead of returning partial data. Retrying the whole month a few times
+# with a backoff clears most of these transient hiccups without dying.
+MAX_FETCH_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 30
+
 COLUMNS = [
     "game_pk", "game_date", "pitcher", "player_name", "batter",
     "pitch_type", "events", "description",
@@ -71,6 +78,22 @@ def fetch_month(window_start: date, window_end: date) -> pd.DataFrame:
     return regular_season.reindex(columns=COLUMNS)
 
 
+def fetch_month_with_retries(window_start: date, window_end: date) -> pd.DataFrame:
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_FETCH_ATTEMPTS + 1):
+        try:
+            return fetch_month(window_start, window_end)
+        except Exception as exc:  # noqa: BLE001 -- pybaseball raises various parser/network errors
+            last_error = exc
+            logger.warning(
+                "%s ~ %s 수집 실패 (%d/%d회 시도): %s", window_start, window_end, attempt, MAX_FETCH_ATTEMPTS, exc
+            )
+            if attempt < MAX_FETCH_ATTEMPTS:
+                time.sleep(RETRY_BACKOFF_SECONDS)
+    assert last_error is not None
+    raise last_error
+
+
 def collect_all(start_date: date = OVERALL_START_DATE, end_date: date = OVERALL_END_DATE) -> None:
     windows = month_windows(start_date, end_date)
     current_year: int | None = None
@@ -90,7 +113,15 @@ def collect_all(start_date: date = OVERALL_START_DATE, end_date: date = OVERALL_
             continue
 
         logger.info("%d-%02d 수집 중 (%s ~ %s)", year, month, window_start, window_end)
-        month_df = fetch_month(window_start, window_end)
+        try:
+            month_df = fetch_month_with_retries(window_start, window_end)
+        except Exception as exc:  # noqa: BLE001 -- keep the backfill going past a stuck month
+            logger.error(
+                "%d-%02d 수집 실패, 다음 달로 넘어감 (재실행하면 이 달만 재시도됨): %s", year, month, exc
+            )
+            time.sleep(SLEEP_SECONDS_BETWEEN_REQUESTS)
+            continue
+
         out_path.parent.mkdir(parents=True, exist_ok=True)
         month_df.to_parquet(out_path, index=False)
         logger.info("%d-%02d 저장 완료: %d건 -> %s", year, month, len(month_df), out_path)

@@ -75,3 +75,50 @@ def test_collect_all_fetches_and_saves_missing_month(tmp_path, monkeypatch):
     saved = pd.read_parquet(tmp_path / "2021" / "04.parquet")
     assert len(saved) == 2  # the game_type == "S" (spring training) row is dropped
     assert list(saved.columns) == statcast_scraper.COLUMNS
+
+
+def test_collect_all_retries_a_transient_failure_and_still_saves(tmp_path, monkeypatch):
+    monkeypatch.setattr(statcast_scraper, "RAW_DATA_DIR", tmp_path)
+    monkeypatch.setattr(statcast_scraper, "SLEEP_SECONDS_BETWEEN_REQUESTS", 0)
+    monkeypatch.setattr(statcast_scraper, "RETRY_BACKOFF_SECONDS", 0)
+
+    fake_raw = pd.DataFrame(
+        {"game_type": ["R"], **{col: [1] for col in statcast_scraper.COLUMNS if col != "game_type"}}
+    )
+    calls = {"count": 0}
+
+    def flaky_statcast(start_dt, end_dt):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise ValueError("Error tokenizing data. C error: Expected 1 fields in line 12, saw 2")
+        return fake_raw
+
+    monkeypatch.setattr(statcast_scraper, "statcast", flaky_statcast)
+
+    statcast_scraper.collect_all(date(2021, 4, 1), date(2021, 4, 30))
+
+    assert calls["count"] == 2
+    assert (tmp_path / "2021" / "04.parquet").exists()
+
+
+def test_collect_all_skips_forward_past_a_month_that_exhausts_retries(tmp_path, monkeypatch):
+    monkeypatch.setattr(statcast_scraper, "RAW_DATA_DIR", tmp_path)
+    monkeypatch.setattr(statcast_scraper, "SLEEP_SECONDS_BETWEEN_REQUESTS", 0)
+    monkeypatch.setattr(statcast_scraper, "RETRY_BACKOFF_SECONDS", 0)
+    monkeypatch.setattr(statcast_scraper, "MAX_FETCH_ATTEMPTS", 2)
+
+    fake_raw = pd.DataFrame(
+        {"game_type": ["R"], **{col: [1] for col in statcast_scraper.COLUMNS if col != "game_type"}}
+    )
+
+    def always_fails_for_april_only(start_dt, end_dt):
+        if start_dt.startswith("2021-04"):
+            raise ValueError("Error tokenizing data. C error: Expected 1 fields in line 12, saw 2")
+        return fake_raw
+
+    monkeypatch.setattr(statcast_scraper, "statcast", always_fails_for_april_only)
+
+    statcast_scraper.collect_all(date(2021, 4, 1), date(2021, 5, 31))
+
+    assert not (tmp_path / "2021" / "04.parquet").exists()
+    assert (tmp_path / "2021" / "05.parquet").exists()
