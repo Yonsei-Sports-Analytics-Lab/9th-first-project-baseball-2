@@ -13,7 +13,7 @@
 - `game_type == 'R'` marks regular season.
 - `player_name` is the **pitcher's** name (confirmed against `pitcher` id), not the batter's.
 - `events` is populated only on the pitch that ends a plate appearance; `'double'`, `'triple'`, `'home_run'` are the exact extra-base-hit labels.
-- `pitch_type` codes observed include legacy/rare codes not in the user's list (`FA`, `EP`, `SV`, `FO`). Decision: fastball family = `{FF, SI, FT, FA}` plus `FC` (cutter, flagged separately); **every other code, including unseen future codes, falls into the breaking family** — this keeps the split exhaustively binary as the user specified ("2개 대분류") instead of leaking a silent third "other" bucket. Null/NaN `pitch_type` maps to `None` and is reported as "unknown" in the distribution report rather than dropped.
+- `pitch_type` codes observed include legacy/rare codes not in the user's list (`FA`, `EP`, `SV`, `FO`, `PO`). **Updated 2026-09-19 per user decision:** the plan originally implemented a strict binary fastball/breaking split per the spec's explicit rule, then flagged to the user that the spec's closing line ("`pitch_family: fastball/breaking/offspeed 등`") implied three categories. The user confirmed they want three: `fastball = {FF, SI, FT, FA} ∪ {FC}` (cutter flagged separately via `is_cutter`), `breaking = {SL, ST, CU, KC, CS, SV, SC}`, `offspeed = {CH, FS, FO, EP, KN}`, and any genuinely unrecognized code (e.g. `PO`) falls into `other` rather than being silently dropped or mis-bucketed. Null/NaN `pitch_type` maps to `None`.
 - `game_date` is a plain ISO string, not a `datetime` dtype.
 
 ---

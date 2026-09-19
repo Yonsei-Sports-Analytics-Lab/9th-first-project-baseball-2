@@ -12,8 +12,9 @@ def pitch_type_frequency(pitches: pd.DataFrame) -> pd.DataFrame:
 
 
 def pitch_family_frequency(pitches: pd.DataFrame) -> pd.DataFrame:
-    """Fastball vs breaking counts/shares, plus the cutter's share of all
-    pitches reported as its own row so FC's ambiguous status stays visible.
+    """Fastball/breaking/offspeed counts and shares, plus the cutter's share
+    of all pitches reported as its own row so FC's ambiguous status stays
+    visible even though it is counted inside "fastball".
     """
     families = pitches["pitch_type"].map(map_pitch_family)
     counts = families.value_counts(dropna=False)
