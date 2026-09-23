@@ -30,11 +30,11 @@ def test_build_combined_model_dataset_concatenates_and_flags_group():
 
 
 def test_build_combined_model_dataset_drops_rows_missing_required_covariates():
-    xbh = pd.DataFrame([_event_row(), _event_row(catcher_changed=float("nan"))])
+    xbh = pd.DataFrame([_event_row(), _event_row(baseline_usage=float("nan"))])
     placebo = pd.DataFrame([_event_row(reused_same_type=0.0)])
     combined = build_combined_model_dataset(xbh, placebo)
-    assert len(combined) == 2  # the NaN catcher_changed row is dropped
-    assert combined["catcher_changed"].notna().all()
+    assert len(combined) == 2  # the NaN baseline_usage row is dropped
+    assert combined["baseline_usage"].notna().all()
 
 
 def test_compute_icc_known_value():

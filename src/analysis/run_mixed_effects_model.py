@@ -145,10 +145,11 @@ def run() -> None:
         "행 수: XBH=%d, placebo=%d, 합계=%d",
         (combined_raw["group"] == 1).sum(), (combined_raw["group"] == 0).sum(), len(combined_raw),
     )
-    key_cols = ["outs_when_up", "catcher_changed", "baseline_usage", "score_diff", "stand", "pitch_family"]
+    key_cols = ["outs_when_up", "baseline_usage", "score_diff", "stand", "pitch_family"]
     logger.info("주요 컬럼 결측치 비율:\n%s", combined_raw[key_cols].isna().mean())
     logger.info(
-        "catcher_changed=1 비율: %.5f (%d / %d) -- 정의상 같은 하프이닝 내 연속 타석 비교라 매우 희귀함",
+        "참고: catcher_changed=1 비율 %.5f (%d / %d) -- 정의상 같은 하프이닝 내 연속 타석 비교라 매우 희귀해 "
+        "모델 공식에서 제외함 (사용자 확인)",
         combined_raw["catcher_changed"].mean(), combined_raw["catcher_changed"].sum(), combined_raw["catcher_changed"].notna().sum(),
     )
 

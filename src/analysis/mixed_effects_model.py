@@ -25,13 +25,16 @@ REQUIRED_MODEL_COLUMNS = [
     "stand",
     "pitch_family",
     "season",
-    "catcher_changed",
     "pitcher",
 ]
 
+# catcher_changed was dropped: within has_next_ab=True (same pitcher, very
+# next batter, half-inning never ended), the catcher is essentially never
+# substituted -- only 5 of 123,079 rows had catcher_changed=1, making the
+# coefficient practically unidentifiable (see README caveat).
 MODEL_FORMULA = (
     "reused_same_type ~ group * baseline_usage + balls + strikes + outs_when_up "
-    "+ score_diff + stand + pitch_family + factor(season) + catcher_changed "
+    "+ score_diff + stand + pitch_family + factor(season) "
     "+ (1 + group | pitcher)"
 )
 
