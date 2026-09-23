@@ -183,9 +183,12 @@ def run() -> None:
     logger.info("투수별 랜덤효과 전체 저장: %s (%d명)", RANDOM_EFFECTS_OUTPUT_PATH, len(random_effects))
 
     top10, bottom10 = rank_pitchers_by_group_slope(random_effects, pitcher_meta, n=10)
-    logger.info("=== group 랜덤 기울기 상위 10명 (회피 경향이 평균보다 더 강함) ===\n%s",
+    # 전체 group 고정효과가 음수(-)이므로: 개인 총효과 = 고정효과 + re_group.
+    # re_group이 클수록(양수에 가까울수록) 총효과가 0에 가까워져 "회피가 약함",
+    # re_group이 작을수록(음수로 클수록) 총효과가 더 음수라 "회피가 강함".
+    logger.info("=== group 랜덤 기울기 상위 10명 (re_group 높음 = 회피 경향이 평균보다 약함/없음) ===\n%s",
                  top10[["pitcher", "pitcher_name", "re_group", "n_xbh_events"]].to_string(index=False))
-    logger.info("=== group 랜덤 기울기 하위 10명 (회피 경향이 평균보다 약하거나 반대) ===\n%s",
+    logger.info("=== group 랜덤 기울기 하위 10명 (re_group 낮음 = 회피 경향이 평균보다 강함) ===\n%s",
                  bottom10[["pitcher", "pitcher_name", "re_group", "n_xbh_events"]].to_string(index=False))
 
     predicted = extract_predictions()
