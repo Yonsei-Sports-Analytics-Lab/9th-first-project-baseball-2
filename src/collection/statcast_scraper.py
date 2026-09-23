@@ -48,6 +48,7 @@ COLUMNS = [
     "home_score", "away_score", "post_home_score", "post_away_score",
     "zone", "plate_x", "plate_z", "pfx_x", "pfx_z",
     "release_speed", "release_spin_rate", "release_extension",
+    "fielder_2",  # catcher's player id, used to detect a catcher change before the next at-bat
 ]
 
 
