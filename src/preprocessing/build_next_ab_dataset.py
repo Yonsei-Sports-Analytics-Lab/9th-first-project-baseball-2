@@ -56,6 +56,15 @@ def compute_baseline_usage(
     return float((prior["pitch_type"] == hit_pitch_type).mean())
 
 
+def compute_catcher_changed(event_fielder_2: float, next_first_pitch_fielder_2: float) -> float:
+    """1 if the catcher (fielder_2) differs between the event pitch and the
+    first pitch of the next at-bat, 0 if the same, NaN if either is missing.
+    """
+    if pd.isna(event_fielder_2) or pd.isna(next_first_pitch_fielder_2):
+        return float("nan")
+    return int(event_fielder_2 != next_first_pitch_fielder_2)
+
+
 def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.DataFrame) -> pd.DataFrame:
     """Compute the next-at-bat pitch-reuse feature set for an arbitrary set
     of outcome pitches (`target_events`, a row subset of `pitches`).
@@ -66,6 +75,7 @@ def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.Data
     computed with identical logic.
     """
     grouped = {key: group for key, group in pitches.groupby(["game_pk", "pitcher"])}
+    has_catcher_data = "fielder_2" in pitches.columns
 
     records = []
     for _, event_row in target_events.iterrows():
@@ -85,34 +95,43 @@ def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.Data
             game_pitches, event_row["at_bat_number"], event_row["pitch_number"], event_row["pitch_type"]
         )
 
-        records.append(
-            {
-                "game_pk": event_row["game_pk"],
-                "game_date": event_row["game_date"],
-                "season": pd.to_datetime(event_row["game_date"]).year,
-                "pitcher": event_row["pitcher"],
-                "pitcher_name": event_row["player_name"],
-                "batter": event_row["batter"],
-                "stand": event_row["stand"],
-                "p_throws": event_row["p_throws"],
-                "at_bat_number": event_row["at_bat_number"],
-                "events": event_row["events"],
-                "hit_pitch_type": event_row["pitch_type"],
-                "pitch_family": map_pitch_family(event_row["pitch_type"]),
-                "is_cutter": is_cutter(event_row["pitch_type"]),
-                "balls": event_row["balls"],
-                "strikes": event_row["strikes"],
-                "outs_when_up": event_row["outs_when_up"],
-                "inning": event_row["inning"],
-                "inning_topbot": event_row["inning_topbot"],
-                "score_diff": compute_score_diff(event_row),
-                "baseline_usage": baseline_usage,
-                "has_next_ab": has_next_ab,
-                "next_ab_pitch_count": next_ab_pitch_count,
-                "reused_same_type": reused_same_type,
-                "same_type_share": same_type_share,
-            }
-        )
+        record = {
+            "game_pk": event_row["game_pk"],
+            "game_date": event_row["game_date"],
+            "season": pd.to_datetime(event_row["game_date"]).year,
+            "pitcher": event_row["pitcher"],
+            "pitcher_name": event_row["player_name"],
+            "batter": event_row["batter"],
+            "stand": event_row["stand"],
+            "p_throws": event_row["p_throws"],
+            "at_bat_number": event_row["at_bat_number"],
+            "events": event_row["events"],
+            "hit_pitch_type": event_row["pitch_type"],
+            "pitch_family": map_pitch_family(event_row["pitch_type"]),
+            "is_cutter": is_cutter(event_row["pitch_type"]),
+            "balls": event_row["balls"],
+            "strikes": event_row["strikes"],
+            "outs_when_up": event_row["outs_when_up"],
+            "inning": event_row["inning"],
+            "inning_topbot": event_row["inning_topbot"],
+            "score_diff": compute_score_diff(event_row),
+            "baseline_usage": baseline_usage,
+            "has_next_ab": has_next_ab,
+            "next_ab_pitch_count": next_ab_pitch_count,
+            "reused_same_type": reused_same_type,
+            "same_type_share": same_type_share,
+        }
+
+        if has_catcher_data:
+            if has_next_ab:
+                next_first_pitch = next_ab.loc[next_ab["pitch_number"].idxmin()]
+                record["catcher_changed"] = compute_catcher_changed(
+                    event_row["fielder_2"], next_first_pitch["fielder_2"]
+                )
+            else:
+                record["catcher_changed"] = float("nan")
+
+        records.append(record)
 
     return pd.DataFrame.from_records(records)
 

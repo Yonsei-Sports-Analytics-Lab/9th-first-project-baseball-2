@@ -6,6 +6,7 @@ from src.preprocessing.build_next_ab_dataset import (
     build_event_dataset,
     build_event_dataset_for_events,
     compute_baseline_usage,
+    compute_catcher_changed,
     compute_score_diff,
     find_next_at_bat_pitches,
     identify_events_by_outcome,
@@ -153,3 +154,52 @@ def test_build_event_dataset_for_events_computes_identical_logic_for_a_placebo_o
     # build_event_dataset() (the XBH-only wrapper) must still behave exactly as before
     xbh_only = build_event_dataset(pitches)
     assert len(xbh_only) == 0  # no double/triple/home_run in this fixture
+
+
+def test_compute_catcher_changed_detects_change():
+    assert compute_catcher_changed(111, 222) == 1
+
+
+def test_compute_catcher_changed_detects_no_change():
+    assert compute_catcher_changed(111, 111) == 0
+
+
+def test_compute_catcher_changed_is_nan_when_either_value_missing():
+    assert math.isnan(compute_catcher_changed(float("nan"), 111))
+    assert math.isnan(compute_catcher_changed(111, float("nan")))
+
+
+def test_build_event_dataset_omits_catcher_changed_when_fielder_2_absent():
+    """Backward compatibility: pitches without a fielder_2 column (e.g. all
+    existing fixtures/raw data collected before it was added) must keep
+    working exactly as before, with no catcher_changed column at all.
+    """
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="SL"),
+        _pitch(at_bat_number=1, pitch_number=2, pitch_type="FF", events="home_run"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="FF"),
+    ])
+    result = build_event_dataset(pitches)
+    assert "catcher_changed" not in result.columns
+
+
+def test_build_event_dataset_adds_catcher_changed_when_fielder_2_present():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="SL", fielder_2=500),
+        _pitch(at_bat_number=1, pitch_number=2, pitch_type="FF", events="home_run", fielder_2=500),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="FF", fielder_2=777),
+        _pitch(at_bat_number=2, pitch_number=2, pitch_type="SL", fielder_2=777),
+    ])
+    result = build_event_dataset(pitches)
+    assert len(result) == 1
+    assert result.iloc[0]["catcher_changed"] == 1  # 500 (hit pitch) -> 777 (next AB's first pitch)
+
+
+def test_build_event_dataset_catcher_changed_is_nan_without_next_ab():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="FF", events="double", fielder_2=500),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL", pitcher=999, fielder_2=500),
+    ])
+    result = build_event_dataset(pitches)
+    assert len(result) == 1
+    assert math.isnan(result.iloc[0]["catcher_changed"])
