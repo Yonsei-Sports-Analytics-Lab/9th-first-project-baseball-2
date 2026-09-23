@@ -103,6 +103,15 @@ def filter_to_same_batter_rematch(pitches: pd.DataFrame, events: pd.DataFrame) -
     return events[pd.Series(keep, index=events.index)]
 
 
+def compute_platoon_match(stand: str | float | None, p_throws: str | float | None) -> float:
+    """1 if the batter and pitcher are same-handed (R vs R, L vs L), 0 if
+    opposite-handed, NaN if either is missing.
+    """
+    if pd.isna(stand) or pd.isna(p_throws):
+        return float("nan")
+    return int(stand == p_throws)
+
+
 def compute_catcher_changed(event_fielder_2: float, next_first_pitch_fielder_2: float) -> float:
     """1 if the catcher (fielder_2) differs between the event pitch and the
     first pitch of the next at-bat, 0 if the same, NaN if either is missing.
@@ -179,7 +188,10 @@ def build_event_dataset_for_events(
             "batter": event_row["batter"],
             "stand": event_row["stand"],
             "p_throws": event_row["p_throws"],
+            "platoon_match": compute_platoon_match(event_row["stand"], event_row["p_throws"]),
             "at_bat_number": event_row["at_bat_number"],
+            "event_pitch_number": event_row["pitch_number"],
+            "next_at_bat_number": next_at_bat_number if has_next_ab else float("nan"),
             "events": event_row["events"],
             "hit_pitch_type": event_row["pitch_type"],
             "pitch_family": map_pitch_family(event_row["pitch_type"]),

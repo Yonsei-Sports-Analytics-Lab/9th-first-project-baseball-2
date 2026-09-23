@@ -51,20 +51,46 @@ MODEL_FORMULA_ROBUSTNESS = (
 
 MODEL_FORMULA = MODEL_FORMULA_ROBUSTNESS  # current recommended default
 
+# The robustness spec plus platoon (same-handed batter/pitcher = 1): the main
+# effect and its interaction with group test whether the avoidance effect
+# differs for same- vs opposite-handed matchups. Needs `platoon_match` in the
+# data (pass required_columns=REQUIRED_MODEL_COLUMNS + ["platoon_match"]).
+MODEL_FORMULA_PLATOON = (
+    "reused_same_type ~ group * baseline_usage + platoon_match + group:platoon_match "
+    "+ balls + strikes + outs_when_up + score_diff + stand + pitch_family + factor(season) "
+    "+ (0 + group | pitcher)"
+)
 
-def build_combined_model_dataset(xbh_events: pd.DataFrame, placebo_events: pd.DataFrame) -> pd.DataFrame:
+
+def build_combined_model_dataset(
+    xbh_events: pd.DataFrame,
+    placebo_events: pd.DataFrame,
+    required_columns: list[str] | None = None,
+) -> pd.DataFrame:
     """Stack the XBH (group=1) and placebo (group=0) event datasets into one
     modeling-ready frame, dropping any row missing a required covariate
     (glmer's default na.omit would do this silently; we do it explicitly so
     the row count is reportable) and coercing `pitcher` to a string grouping
-    factor.
+    factor. `required_columns` defaults to REQUIRED_MODEL_COLUMNS.
     """
     xbh = xbh_events.assign(group=1)
     placebo = placebo_events.assign(group=0)
     combined = pd.concat([xbh, placebo], ignore_index=True)
-    combined = combined.dropna(subset=REQUIRED_MODEL_COLUMNS).copy()
+    combined = combined.dropna(subset=required_columns or REQUIRED_MODEL_COLUMNS).copy()
     combined["pitcher"] = combined["pitcher"].astype(str)
     return combined
+
+
+def compare_random_effects(a: pd.DataFrame, b: pd.DataFrame, column: str = "re_group") -> dict:
+    """Pearson/Spearman correlation of a per-pitcher random-effect column
+    between two model fits, over the pitchers present in both.
+    """
+    merged = a[["pitcher", column]].merge(b[["pitcher", column]], on="pitcher", suffixes=("_a", "_b"))
+    return {
+        "n_common": len(merged),
+        "pearson": merged[f"{column}_a"].corr(merged[f"{column}_b"], method="pearson"),
+        "spearman": merged[f"{column}_a"].corr(merged[f"{column}_b"], method="spearman"),
+    }
 
 
 def compute_icc(pitcher_intercept_variance: float) -> float:

@@ -46,24 +46,28 @@ def build_stratified_placebo_candidates(
     outcome_events: set[str],
     seed: int,
     candidate_filter: Callable[[pd.DataFrame, pd.DataFrame], pd.DataFrame] | None = None,
+    strata_cols: tuple[str, ...] = ("season", "pitch_family"),
 ) -> pd.DataFrame:
     """Sample pitch-level rows whose `events` is in `outcome_events` (e.g.
-    {"field_out"}), stratified to match `treatment_events`' (season,
-    pitch_family) distribution exactly -- a control group that differs from
-    the treatment group only in whether the pitch was hit for extra bases,
-    not in when it was thrown or what type it was.
+    {"field_out"}), stratified to match `treatment_events`' distribution over
+    `strata_cols` exactly -- a control group that differs from the treatment
+    group only in whether the pitch was hit for extra bases, not in the
+    matched dimensions. The default (season, pitch_family) is the main
+    analysis' matching; adding "pitcher" gives same-pitcher matching.
 
-    `treatment_events` must have `season` and `pitch_family` columns (rows
-    with a null `pitch_family` are dropped from the quota). If a stratum's
-    candidate pool is smaller than its quota, every available candidate in
-    that stratum is used instead of raising.
+    `treatment_events` must have every `strata_cols` column, including
+    `pitch_family` (rows with a null `pitch_family` are dropped from the
+    quota). If a stratum's candidate pool is smaller than its quota, every
+    available candidate in that stratum is used instead of raising; strata
+    with candidates but no treatment events are never sampled.
 
     `candidate_filter(pitches, candidates)` optionally narrows the candidate
     pool BEFORE sampling (e.g. to same-batter-rematch-eligible rows), so the
     control group is matched on the treatment group's eligible strata rather
     than losing rows to eligibility afterwards.
     """
-    quota = treatment_events.dropna(subset=["pitch_family"]).groupby(["season", "pitch_family"]).size()
+    strata = list(strata_cols)
+    quota = treatment_events.dropna(subset=["pitch_family"]).groupby(strata).size()
 
     candidates = identify_events_by_outcome(pitches, outcome_events).copy()
     if candidate_filter is not None:
@@ -71,10 +75,18 @@ def build_stratified_placebo_candidates(
     candidates["pitch_family"] = candidates["pitch_type"].map(map_pitch_family)
     candidates = candidates.dropna(subset=["pitch_family"])
 
+    pools = {
+        (key if isinstance(key, tuple) else (key,)): positions
+        for key, positions in candidates.groupby(strata).indices.items()
+    }
+
     rng = np.random.default_rng(seed)
     sampled_parts = []
-    for (season, family), n_needed in quota.items():
-        pool = candidates[(candidates["season"] == season) & (candidates["pitch_family"] == family)]
+    for key, n_needed in quota.items():
+        positions = pools.get(key if isinstance(key, tuple) else (key,))
+        if positions is None:
+            continue
+        pool = candidates.iloc[positions]
         if len(pool) <= n_needed:
             sampled_parts.append(pool)
         else:
@@ -82,6 +94,33 @@ def build_stratified_placebo_candidates(
             sampled_parts.append(pool.loc[idx])
 
     return pd.concat(sampled_parts).copy()
+
+
+def match_treatment_to_control(
+    treatment_events: pd.DataFrame,
+    control_events: pd.DataFrame,
+    strata_cols: tuple[str, ...],
+    seed: int,
+) -> pd.DataFrame:
+    """Trim `treatment_events` so that, in every stratum, it has exactly as
+    many rows as `control_events` (random subsample when it has more; strata
+    with no controls are dropped). Used after a same-pitcher control draw
+    that could not fill every treatment stratum, so both groups end up with
+    identical stratum counts.
+    """
+    strata = list(strata_cols)
+    control_counts = control_events.groupby(strata).size()
+    rng = np.random.default_rng(seed)
+    kept = []
+    for key, group in treatment_events.groupby(strata):
+        n_control = control_counts.get(key, 0)
+        if n_control == 0:
+            continue
+        if len(group) <= n_control:
+            kept.append(group)
+        else:
+            kept.append(group.iloc[rng.choice(len(group), size=n_control, replace=False)])
+    return pd.concat(kept).copy()
 
 
 def compute_expected_reuse_prob(baseline_usage: pd.Series, next_ab_pitch_count: pd.Series) -> pd.Series:

@@ -8,6 +8,7 @@ from src.preprocessing.build_next_ab_dataset import (
     build_event_dataset_for_events,
     compute_baseline_usage,
     compute_catcher_changed,
+    compute_platoon_match,
     compute_score_diff,
     filter_to_same_batter_rematch,
     find_next_at_bat_pitches,
@@ -224,6 +225,37 @@ def test_reuse_metrics_are_nan_when_the_event_pitch_has_no_pitch_type():
     assert math.isnan(event["reused_same_type"])
     assert math.isnan(event["same_type_share"])
     assert math.isnan(event["baseline_usage"])
+
+
+def test_compute_platoon_match_is_1_for_same_handedness_and_0_for_opposite():
+    assert compute_platoon_match("R", "R") == 1
+    assert compute_platoon_match("L", "L") == 1
+    assert compute_platoon_match("L", "R") == 0
+    assert compute_platoon_match("R", "L") == 0
+    assert math.isnan(compute_platoon_match(None, "R"))
+    assert math.isnan(compute_platoon_match("R", float("nan")))
+
+
+def test_event_record_carries_platoon_match_event_pitch_number_and_compared_at_bat():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="SL", stand="L", p_throws="R"),
+        _pitch(at_bat_number=1, pitch_number=2, pitch_type="FF", stand="L", p_throws="R", events="home_run"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL", batter=300),
+        _pitch(at_bat_number=10, pitch_number=1, pitch_type="FF", stand="L", p_throws="R"),
+    ])
+    events = identify_extra_base_hit_events(pitches)
+
+    default = build_event_dataset_for_events(pitches, events).iloc[0]
+    assert default["platoon_match"] == 0  # left-handed batter vs right-handed pitcher
+    assert default["event_pitch_number"] == 2
+    assert default["next_at_bat_number"] == 2
+
+    rematch = build_event_dataset_for_events(pitches, events, next_pa_mode="same_batter").iloc[0]
+    assert rematch["next_at_bat_number"] == 10
+
+    lone = pitches.iloc[:2]  # no later PA at all
+    none_row = build_event_dataset_for_events(lone, identify_extra_base_hit_events(lone)).iloc[0]
+    assert math.isnan(none_row["next_at_bat_number"])
 
 
 def _rematch_fixture():

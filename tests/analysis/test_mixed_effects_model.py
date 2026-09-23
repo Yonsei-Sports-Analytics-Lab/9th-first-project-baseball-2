@@ -3,7 +3,10 @@ import pandas as pd
 import pytest
 
 from src.analysis.mixed_effects_model import (
+    MODEL_FORMULA_PLATOON,
+    REQUIRED_MODEL_COLUMNS,
     build_combined_model_dataset,
+    compare_random_effects,
     compute_calibration_table,
     compute_icc,
     rank_pitchers_by_group_slope,
@@ -35,6 +38,33 @@ def test_build_combined_model_dataset_drops_rows_missing_required_covariates():
     combined = build_combined_model_dataset(xbh, placebo)
     assert len(combined) == 2  # the NaN baseline_usage row is dropped
     assert combined["baseline_usage"].notna().all()
+
+
+def test_build_combined_model_dataset_accepts_extra_required_columns():
+    xbh = pd.DataFrame([_event_row(platoon_match=1.0), _event_row(platoon_match=float("nan"))])
+    placebo = pd.DataFrame([_event_row(platoon_match=0.0)])
+    combined = build_combined_model_dataset(
+        xbh, placebo, required_columns=REQUIRED_MODEL_COLUMNS + ["platoon_match"]
+    )
+    assert len(combined) == 2  # the NaN platoon_match row is dropped only when it is required
+    default = build_combined_model_dataset(xbh, placebo)
+    assert len(default) == 3
+
+
+def test_platoon_formula_adds_main_effect_and_group_interaction_to_the_robustness_spec():
+    assert "platoon_match" in MODEL_FORMULA_PLATOON
+    assert "group:platoon_match" in MODEL_FORMULA_PLATOON
+    assert "(0 + group | pitcher)" in MODEL_FORMULA_PLATOON
+    assert "catcher_changed" not in MODEL_FORMULA_PLATOON
+
+
+def test_compare_random_effects_correlates_only_pitchers_present_in_both():
+    a = pd.DataFrame({"pitcher": ["1", "2", "3", "4"], "re_group": [0.1, 0.2, 0.3, 0.9]})
+    b = pd.DataFrame({"pitcher": ["1", "2", "3", "5"], "re_group": [0.2, 0.4, 0.6, -9.0]})
+    result = compare_random_effects(a, b)
+    assert result["n_common"] == 3
+    assert result["pearson"] == pytest.approx(1.0)
+    assert result["spearman"] == pytest.approx(1.0)
 
 
 def test_compute_icc_known_value():

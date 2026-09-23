@@ -5,6 +5,7 @@ from src.analysis.avoidance_stats import (
     build_stratified_placebo_candidates,
     compute_expected_reuse_prob,
     compute_season_usage_rate,
+    match_treatment_to_control,
     summarize_diff_in_diff,
     summarize_paired_diff,
 )
@@ -91,6 +92,61 @@ def test_build_stratified_placebo_candidates_applies_candidate_filter_before_sam
     )
     assert len(sample) == 2
     assert sample["eligible"].all()
+
+
+def test_build_stratified_placebo_candidates_can_match_on_pitcher_too():
+    treatment = pd.DataFrame({
+        "pitcher": [1, 1, 2],
+        "season": [2021, 2021, 2021],
+        "pitch_family": ["fastball", "fastball", "fastball"],
+    })  # quota: pitcher 1 -> 2, pitcher 2 -> 1
+    pitches = pd.DataFrame({
+        "events": ["field_out"] * 6,
+        "pitcher": [1, 1, 1, 2, 3, 3],  # pitcher 3 has no treatment events: never sampled
+        "pitch_type": ["FF"] * 6,
+        "season": [2021] * 6,
+    })
+    sample = build_stratified_placebo_candidates(
+        pitches, treatment, {"field_out"}, seed=1, strata_cols=("pitcher", "season", "pitch_family")
+    )
+    assert sorted(sample["pitcher"].tolist()) == [1, 1, 2]
+
+
+def test_pitcher_matching_takes_only_what_exists_when_a_pitcher_has_too_few_candidates():
+    treatment = pd.DataFrame({
+        "pitcher": [1, 1, 1],
+        "season": [2021, 2021, 2021],
+        "pitch_family": ["fastball"] * 3,
+    })  # quota 3, but pitcher 1 has just one candidate; pitcher 9 has none but is never asked for
+    pitches = pd.DataFrame({
+        "events": ["field_out", "field_out"],
+        "pitcher": [1, 9],
+        "pitch_type": ["FF", "FF"],
+        "season": [2021, 2021],
+    })
+    sample = build_stratified_placebo_candidates(
+        pitches, treatment, {"field_out"}, seed=1, strata_cols=("pitcher", "season", "pitch_family")
+    )
+    assert sample["pitcher"].tolist() == [1]
+
+
+def test_match_treatment_to_control_trims_treatment_to_the_controls_stratum_counts():
+    strata = ("pitcher", "season", "pitch_family")
+    treatment = pd.DataFrame({
+        "pitcher": [1, 1, 1, 2, 3],
+        "season": [2021] * 5,
+        "pitch_family": ["fastball"] * 5,
+        "id": [10, 11, 12, 20, 30],
+    })
+    control = pd.DataFrame({
+        "pitcher": [1, 1, 2, 2],  # pitcher 1: 2 controls, pitcher 2: 2 controls, pitcher 3: none
+        "season": [2021] * 4,
+        "pitch_family": ["fastball"] * 4,
+    })
+    matched = match_treatment_to_control(treatment, control, strata, seed=1)
+    counts = matched.groupby("pitcher").size().to_dict()
+    assert counts == {1: 2, 2: 1}  # pitcher 1 trimmed 3->2, pitcher 2 kept (1 treatment), pitcher 3 dropped
+    assert matched["id"].isin(treatment["id"]).all()
 
 
 def test_compute_expected_reuse_prob_formula():

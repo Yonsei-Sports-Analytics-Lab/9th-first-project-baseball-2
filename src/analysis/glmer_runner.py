@@ -56,6 +56,8 @@ def extract_fixed_effects_table() -> pd.DataFrame:
         }
     )
     df["odds_ratio"] = np.exp(df["estimate"])
+    df["or_ci_low"] = np.exp(df["estimate"] - 1.96 * df["std_error"])  # Wald 95% CI
+    df["or_ci_high"] = np.exp(df["estimate"] + 1.96 * df["std_error"])
     return df
 
 
@@ -92,6 +94,48 @@ def extract_random_effects_table() -> pd.DataFrame:
         df = ro.conversion.get_conversion().rpy2py(pitcher_ranef)
     df = df.reset_index().rename(columns={"index": "pitcher", "(Intercept)": "re_intercept", "group": "re_group"})
     return df
+
+
+def fit_lmer(data: pd.DataFrame, formula: str):
+    """Linear mixed model (REML) via lme4::lmer, run as an R code string for
+    the same reason as fit_glmer.
+    """
+    ro.r("library(lme4)")
+    with R_CONVERTER.context():
+        r_df = ro.conversion.get_conversion().py2rpy(data)
+        ro.globalenv["model_data"] = r_df
+    ro.r(f"model <- lmer({formula}, data = model_data, REML = TRUE)")
+    return ro.globalenv["model"]
+
+
+def extract_lmer_fixed_effects() -> pd.DataFrame:
+    """Fixed effects of the current lmer model with Wald (normal) p-values and
+    95% CIs -- lmer reports no p-values, and with tens of thousands of rows
+    the t distribution is indistinguishable from the normal.
+    """
+    from scipy import stats
+
+    coefs = ro.r("as.data.frame(summary(model)$coefficients)")
+    with R_CONVERTER.context():
+        df = ro.conversion.get_conversion().rpy2py(coefs)
+    df = df.reset_index().rename(
+        columns={"index": "term", "Estimate": "estimate", "Std. Error": "std_error", "t value": "t_value"}
+    )
+    df["ci_low"] = df["estimate"] - 1.96 * df["std_error"]
+    df["ci_high"] = df["estimate"] + 1.96 * df["std_error"]
+    df["p_value"] = 2 * stats.norm.sf(df["t_value"].abs())
+    return df
+
+
+def extract_ranef_table(grouping: str = "pitcher") -> pd.DataFrame:
+    """Per-group random effects of the current model; columns are named
+    `re_<term>` (intercept -> re_intercept).
+    """
+    table = ro.r(f"as.data.frame(ranef(model)${grouping})")
+    with R_CONVERTER.context():
+        df = ro.conversion.get_conversion().rpy2py(table)
+    df = df.reset_index().rename(columns={"index": grouping, "(Intercept)": "re_intercept"})
+    return df.rename(columns={c: f"re_{c}" for c in df.columns if c not in (grouping, "re_intercept")})
 
 
 def extract_predictions() -> np.ndarray:

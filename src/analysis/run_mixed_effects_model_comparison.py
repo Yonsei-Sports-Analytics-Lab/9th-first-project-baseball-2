@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 PROCESSED_DATA_DIR = Path(__file__).resolve().parents[2] / "data" / "processed"
 XBH_EVENTS_PATH = PROCESSED_DATA_DIR / "pitch_reuse_after_xbh_events.parquet"
-ORIGINAL_RANDOM_EFFECTS_PATH = PROCESSED_DATA_DIR / "pitch_avoidance_mixed_model_random_effects.csv"
+ORIGINAL_RANDOM_EFFECTS_PATH = PROCESSED_DATA_DIR / "pitch_avoidance_mixed_model_random_effects_original.csv"
 ROBUSTNESS_RANDOM_EFFECTS_PATH = PROCESSED_DATA_DIR / "pitch_avoidance_mixed_model_random_effects_robustness.csv"
 PLACEBO_OUTCOME_EVENTS = {"field_out"}
 PLACEBO_SEED = 20260923
