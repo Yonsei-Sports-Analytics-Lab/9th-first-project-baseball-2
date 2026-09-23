@@ -4,3 +4,4 @@ pybaseball
 pytest
 scipy
 statsmodels
+rpy2

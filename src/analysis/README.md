@@ -15,11 +15,27 @@
   * `build_stratified_placebo_candidates()`: 대조군(예: `field_out`)을 처치군(XBH)의 season×pitch_family 분포에 맞춰 층화추출
   * `summarize_paired_diff()` / `summarize_diff_in_diff()`: 짝지은 비교 / 대조군 대비 diff-in-diff 비교 (평균, 신뢰구간, t-test, Wilcoxon/Mann-Whitney)
 * `run_pitch_avoidance_analysis.py`: 위 함수들로 3단계 검증(경기 내 기준선 → 시즌 기준선 → placebo diff-in-diff)을 순서대로 실행하고 요약 로그를 출력하는 진입점
+* `mixed_effects_model.py`: 혼합효과 로지스틱 회귀용 순수 함수 (데이터 결합, ICC 계산, 투수 랭킹, calibration 테이블)
+* `run_mixed_effects_model.py`: XBH+placebo 통합 데이터로 `reused_same_type ~ group * baseline_usage + ... + (1 + group | pitcher)` 혼합효과 로지스틱 회귀를 R `lme4::glmer`(rpy2 연동)로 적합하고, 고정효과/ICC/투수별 랜덤효과/calibration을 출력하는 진입점
 
 ## 🔄 실행 방법
 
-`data/raw`와 `data/processed/pitch_reuse_after_xbh_events.parquet`가 이미 있어야 합니다 (없다면 `src/collection/statcast_scraper.py` → `src/preprocessing/data_pipeline.py` 순서로 먼저 실행).
+`data/raw`(fielder_2 포함)와 `data/processed/pitch_reuse_after_xbh_events.parquet`가 이미 있어야 합니다 (없다면 `src/collection/statcast_scraper.py` → `src/preprocessing/data_pipeline.py` 순서로 먼저 실행).
 
 ```bash
 python -m src.analysis.run_pitch_avoidance_analysis
 ```
+
+`run_mixed_effects_model.py`는 추가로 R과 R 패키지 `lme4`, Python 패키지 `rpy2`가 필요합니다:
+
+```bash
+brew install r cmake   # cmake는 lme4의 의존 패키지 nloptr 빌드에 필요
+Rscript -e 'install.packages("lme4", repos="https://cloud.r-project.org")'
+pip install rpy2
+
+python -m src.analysis.run_mixed_effects_model
+```
+
+결과 중 투수별 전체 랜덤효과는 `data/processed/pitch_avoidance_mixed_model_random_effects.csv`로 저장됩니다.
+
+**참고:** `catcher_changed`는 정의상 "같은 투수가 던지는 바로 다음 타석" 구간(`has_next_ab=True`)에서만 계산되는데, 포수는 하프이닝 도중 거의 교체되지 않아 전체 표본(123,079건) 중 1이 5건뿐입니다. 이 변수의 회귀계수는 표준오차가 매우 크게 나옵니다(추정 불가에 가까움) — 버그가 아니라 실제 현상입니다.
