@@ -45,6 +45,19 @@
 * 범석님 노트북(Python, 시즌 baseline)과 이 저장소의 독립 재구현이 일치합니다: 재대결 건수는 시즌별 1~7건 차이, 시즌 baseline은 0.02%p 이내, 시즌별 감소폭은 최대 0.10%p 차이.
 * 재구현 스크립트: `src/analysis/run_same_batter_rematch_analysis.py` (투수별 랜덤효과는 `data/processed/pitch_avoidance_same_batter_rematch_random_effects.csv`, 로컬 전용).
 
+**추가 검증 (2026-09-24, 같은 스크립트와 `run_intensive_margin_analysis.py`)**
+
+| 검증 | 결과 |
+|---|---|
+| ⑥ 동타/이타(platoon) 혼합모델 | `platoon_match` 오즈비 1.145 [1.082, 1.212] (p<0.001), `group × platoon_match` 오즈비 **0.962** [0.894, 1.036] (p=0.30) — 회피 효과가 동타/이타에 따라 다르다는 증거 없음 |
+| ⑥ 순수 감소 스플릿 (시즌 baseline) | 이타 13.7%p vs 동타 15.0%p, 타자 좌/우 14.3%p 대 14.3%p, 투수 좌/우 14.2%p 대 14.3%p. 구종별(표본 300건 이상)은 FF 11.7%p ~ FS 19.0%p |
+| ⑦ 투수 단위 매칭 (같은 투수×시즌×구종계열의 `field_out`만 대조군) | 장타의 98.5%(28,328건, 839명)가 1:1 매칭. 순수 감소 14.4%p / 15.2%p로 층화 매칭(14.3 / 15.2)과 동일, `group` 오즈비 0.296 대 0.278, `group × baseline_usage` 1.86 대 2.30(둘 다 p<0.001), 투수별 랜덤 기울기 상관 Pearson 0.994 / Spearman 0.986 |
+| ⑧ Intensive margin (재사용한 이벤트만: 장타 13,103건, 대조군 19,400건) | 대조군 대비 변화(`group × time`): 코스 **+0.019 ft** [0.009, 0.028] (p=0.0002, 약 0.2인치), 무브먼트 +0.0014 ft (p=0.24), 구속 −0.003 mph (p=0.78) |
+
+* ⑧의 대조군 없는 pre→post 구속 변화는 −0.32 mph이지만 대조군도 −0.37 mph 떨어집니다. 경기가 진행되며(피로 등) 생기는 변화이고 장타에 대한 반응이 아닙니다. 그래서 Intensive margin은 대조군 대비 값을 기준으로 봅니다.
+* 코스 변화는 통계적으로는 유의하지만 편차 표준편차(0.53 ft)의 약 3.5%로 실질 크기는 아주 작습니다. 무브먼트·구속에서는 장타에 특정한 변화가 관찰되지 않았습니다.
+* 변수 정의와 결측 처리는 [docs/variable_spec.md](docs/variable_spec.md)에 정리했습니다.
+
 ### 보조: 다음 타자 기준 (장타 72,886건 vs 대조군 50,158건)
 
 | 단계 | 결과 |
@@ -77,8 +90,8 @@
   * `preprocessing/`: 이벤트 데이터셋 생성(`build_next_ab_dataset.py`, 다음 타자/같은 타자 재대결 두 모드), 구종 계열 분류, 분포 리포트, 전체 파이프라인(`data_pipeline.py`)
   * `analysis/`: 같은 타자 재대결 분석(메인), 다음 타자 기준 회피 가설 검증(시즌 baseline, placebo diff-in-diff), 혼합효과 로지스틱 회귀(R `lme4` 연동)
   * `models/`, `utils/`, `visualization/`: 아직 사용 전 (폴더별 README 참고)
-* `tests/`: 순수 함수 단위 테스트 (55개)
-* `docs/superpowers/plans/`: 초기 구현 계획서
+* `tests/`: 순수 함수 단위 테스트 (68개)
+* `docs/`: 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
 * `requirements.txt`: 프로젝트 실행에 필요한 파이썬 패키지 목록
 
 ---
@@ -89,7 +102,8 @@
 - [x] 회피 효과 실재 검증 — 다음 타자 기준(보조): 대조군 비교, diff-in-diff
 - [x] Extensive margin 혼합효과모델 — 다음 타자 기준(보조) 및 robustness 체크
 - [x] 메인 분석(같은 타자 재대결) 대조군 검증 + 혼합효과모델, 범석님 노트북과 교차검증
-- [ ] Intensive margin (구종은 유지해도 코스·무브먼트·구속을 바꾸는지)
+- [x] 대조군/변수 정리: 동타/이타(platoon) 검정, 투수 단위 매칭 robustness, 변수 스펙 문서 (2026-09-24)
+- [x] Intensive margin (구종은 유지해도 코스·무브먼트·구속을 바꾸는지) (2026-09-24)
 - [ ] 가치모델 (RL 프레임 또는 run value 기반 GBM)
 - [ ] 사례연구 (회피 성향 상/하위 투수)
 - [ ] 최종 산출물 / 발표자료
@@ -103,6 +117,7 @@
 * 대조군은 season × pitch_family 층화추출이라 투수, 이닝, 카운트, 주자 상황까지 매칭된 것은 아닙니다. 장타는 위기 상황과 함께 나오는 경우가 많아 "장타를 맞아서"와 "위기라서"가 섞였을 가능성이 있습니다(주자 상황은 수집하지 않음).
 * 다음 타자 분석에서 `has_next_ab`/`baseline_usage` 필터 후 표본 유지율이 장타(약 92%)보다 `field_out`(약 63%)이 훨씬 낮은데, 3아웃째로 이닝이 끝나는 경우 등이 원인으로 추정되며 선택 편향 가능성이 있습니다(`outs_when_up` 통제 등 추가 확인 필요).
 * `pitch_type`이 없는 투구는 구사율(분자·분모)에서 제외하고, 이벤트 투구의 구종이 결측인 장타(39건)는 재사용 지표를 NaN으로 둡니다. 비교 타석 안의 결측 구종 투구는 `same_type_share` 분모에 포함되는데, 범석님 노트북은 이를 제외해 시즌별 감소폭이 최대 0.10%p 달라지는 것으로 보입니다.
+* Intensive margin은 "다시 던진 이벤트"로만 조건을 걸기 때문에(재사용 자체가 결과의 일부) 선택 효과가 있을 수 있습니다. pre는 같은 경기 안의 이전 같은 구종 투구라 시간 경과(피로 등)와 섞이므로 대조군 대비 값(`group × time`)을 기준으로 해석하세요. 편차의 baseline에는 비교 대상 투구도 포함됩니다.
 * `catcher_changed`(포수 교체 여부)는 모델에서 제외했습니다. `has_next_ab=True`는 하프이닝이 끊기지 않은 구간이라 포수 교체가 구조적으로 거의 없어(123,044건 중 5건) 계수를 추정할 수 없습니다. 컬럼 자체는 이벤트 데이터셋에 남아 있습니다.
 * 초기 스펙의 구종 계열 표기가 2분류/3분류로 엇갈려 3분류(fastball/breaking/offspeed)로 확정했습니다.
 
@@ -138,8 +153,11 @@ python -m src.collection.statcast_scraper
 # 2. 이벤트 데이터셋 생성 + 구종 분포 리포트 (약 2분)
 python -m src.preprocessing.data_pipeline
 
-# 3. [메인] 같은 타자 재대결 분석 (baseline 2종 → placebo 넷팅 → 이진 지표 → 혼합효과, 약 2분)
+# 3. [메인] 같은 타자 재대결 분석 (baseline 2종 → placebo 넷팅 → 이진 지표 → 혼합효과 → platoon → 투수 단위 매칭, 약 3분)
 python -m src.analysis.run_same_batter_rematch_analysis
+
+# 3-1. [메인] Intensive margin (코스·무브먼트·구속 편차, 3.의 이벤트 파일을 재사용, 약 2분, R 필요)
+python -m src.analysis.run_intensive_margin_analysis
 
 # 4. [보조] 다음 타자 기준 회피 가설 검증 (경기 내 baseline → 시즌 baseline → placebo diff-in-diff)
 python -m src.analysis.run_pitch_avoidance_analysis

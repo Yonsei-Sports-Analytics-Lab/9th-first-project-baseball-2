@@ -19,12 +19,15 @@
 
 * `avoidance_stats.py`: 투수의 "장타 허용 구종 회피" 가설 검증에 쓰이는 통계 함수들
   * `compute_season_usage_rate()`: 투수-시즌-구종별 구사율 (경기 내 사전 비중보다 노이즈가 적은 기준선, 구종 결측 투구는 제외)
-  * `build_stratified_placebo_candidates()`: 대조군(예: `field_out`)을 처치군(XBH)의 season×pitch_family 분포에 맞춰 층화추출 (`candidate_filter`로 후보를 미리 좁힐 수 있음)
+  * `build_stratified_placebo_candidates()`: 대조군(예: `field_out`)을 처치군(XBH)의 season×pitch_family 분포에 맞춰 층화추출 (`candidate_filter`로 후보를 미리 좁히고, `strata_cols`에 `pitcher`를 넣으면 같은 투수 매칭)
+  * `match_treatment_to_control()`: 같은 투수 매칭처럼 대조군이 모든 층을 못 채울 때, 장타 쪽을 대조군의 층별 건수에 맞춰 1:1로 줄임
   * `summarize_paired_diff()` / `summarize_diff_in_diff()`: 짝지은 비교 / 대조군 대비 diff-in-diff 비교 (평균, 신뢰구간, t-test, Wilcoxon/Mann-Whitney)
-* `run_same_batter_rematch_analysis.py`: **[메인]** 같은 타자 재대결 이벤트를 만들고, 경기 내/시즌 baseline 대비 감소 → placebo 넷팅 diff-in-diff(전체·구종 계열·시즌·baseline>0) → 이진 재사용 지표 → 혼합효과 회귀까지 실행하는 진입점 (R이 없으면 혼합효과만 생략)
+* `run_same_batter_rematch_analysis.py`: **[메인]** 같은 타자 재대결 이벤트를 만들고, 경기 내/시즌 baseline 대비 감소 → placebo 넷팅 diff-in-diff(전체·구종 계열·시즌·baseline>0) → 이진 재사용 지표 → 혼합효과 회귀 → 동타/이타(platoon) 모델·좌우/구종별 스플릿 → 같은 투수 매칭 robustness까지 실행하는 진입점 (R이 없으면 혼합효과 이후만 생략). 이벤트 파일을 `data/processed/`에 저장해 다른 스크립트가 재사용
+* `intensive_margin.py`: **[메인]** Intensive margin용 순수 함수 — 투수·시즌·구종별 baseline(위치는 타자 타석별), 코스/무브먼트/구속 편차, pre/post 투구 관측 수집
+* `run_intensive_margin_analysis.py`: **[메인]** 재사용한 이벤트에서 코스·무브먼트·구속 편차가 장타 후 달라지는지를 outcome별 선형 혼합모델 3종(요청 스펙 / 이벤트 랜덤효과 추가 / 대조군 포함 `group × time`)으로 검정하고, 투수별 랜덤효과를 사례연구용으로 저장하는 진입점 (R 필요)
 * `run_pitch_avoidance_analysis.py`: **[보조]** 3단계 검증(경기 내 기준선 → 시즌 기준선 → placebo diff-in-diff)을 순서대로 실행하고 요약 로그를 출력하는 진입점
 * `mixed_effects_model.py`: 혼합효과 로지스틱 회귀용 순수 함수와 모델 공식 (데이터 결합, ICC 계산, 투수 랭킹, calibration 테이블, `MODEL_FORMULA_ORIGINAL`/`MODEL_FORMULA_ROBUSTNESS`)
-* `glmer_runner.py`: R `lme4::glmer`를 rpy2로 호출해 적합하고 고정효과·분산성분·랜덤효과·예측값을 꺼내는 공용 코드
+* `glmer_runner.py`: R `lme4::glmer`(로지스틱)와 `lmer`(선형)를 rpy2로 호출해 적합하고 고정효과(오즈비/Wald CI 포함)·분산성분·랜덤효과·예측값을 꺼내는 공용 코드
 * `run_mixed_effects_model.py`: **[보조]** XBH+placebo 통합 데이터로 robustness 공식 `reused_same_type ~ group * baseline_usage + ... + factor(season) + (0 + group | pitcher)` 을 적합하고, 고정효과/투수별 랜덤효과/calibration을 출력하는 진입점
 * `run_mixed_effects_model_comparison.py`: **[보조]** 원본 공식(`catcher_changed` 포함, `(1 + group | pitcher)`)과 robustness 공식을 같은 데이터로 나란히 적합해 고정효과와 투수별 랜덤효과 상관을 비교하는 진입점
 
