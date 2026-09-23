@@ -11,8 +11,15 @@ from src.preprocessing.pitch_family import is_cutter, map_pitch_family
 EXTRA_BASE_HIT_EVENTS = {"double", "triple", "home_run"}
 
 
+def identify_events_by_outcome(pitches: pd.DataFrame, outcome_events: set[str]) -> pd.DataFrame:
+    """Pitches whose `events` value is in `outcome_events` (e.g. XBH labels,
+    or a placebo outcome like {"field_out"} for a control-group comparison).
+    """
+    return pitches[pitches["events"].isin(outcome_events)].copy()
+
+
 def identify_extra_base_hit_events(pitches: pd.DataFrame) -> pd.DataFrame:
-    return pitches[pitches["events"].isin(EXTRA_BASE_HIT_EVENTS)].copy()
+    return identify_events_by_outcome(pitches, EXTRA_BASE_HIT_EVENTS)
 
 
 def find_next_at_bat_pitches(game_pitches: pd.DataFrame, next_at_bat_number: int) -> pd.DataFrame:
@@ -49,49 +56,56 @@ def compute_baseline_usage(
     return float((prior["pitch_type"] == hit_pitch_type).mean())
 
 
-def build_event_dataset(pitches: pd.DataFrame) -> pd.DataFrame:
-    events = identify_extra_base_hit_events(pitches)
+def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.DataFrame) -> pd.DataFrame:
+    """Compute the next-at-bat pitch-reuse feature set for an arbitrary set
+    of outcome pitches (`target_events`, a row subset of `pitches`).
+
+    This is the shared core used for both the real extra-base-hit dataset
+    and a placebo/control group (e.g. `field_out` events) built from
+    `identify_events_by_outcome`, so the two groups are guaranteed to be
+    computed with identical logic.
+    """
     grouped = {key: group for key, group in pitches.groupby(["game_pk", "pitcher"])}
 
     records = []
-    for _, hit in events.iterrows():
-        game_pitches = grouped[(hit["game_pk"], hit["pitcher"])]
+    for _, event_row in target_events.iterrows():
+        game_pitches = grouped[(event_row["game_pk"], event_row["pitcher"])]
 
-        next_ab = find_next_at_bat_pitches(game_pitches, hit["at_bat_number"] + 1)
+        next_ab = find_next_at_bat_pitches(game_pitches, event_row["at_bat_number"] + 1)
         has_next_ab = len(next_ab) > 0
         next_ab_pitch_count = len(next_ab)
         if has_next_ab:
-            reused_same_type = int((next_ab["pitch_type"] == hit["pitch_type"]).any())
-            same_type_share = float((next_ab["pitch_type"] == hit["pitch_type"]).mean())
+            reused_same_type = int((next_ab["pitch_type"] == event_row["pitch_type"]).any())
+            same_type_share = float((next_ab["pitch_type"] == event_row["pitch_type"]).mean())
         else:
             reused_same_type = float("nan")
             same_type_share = float("nan")
 
         baseline_usage = compute_baseline_usage(
-            game_pitches, hit["at_bat_number"], hit["pitch_number"], hit["pitch_type"]
+            game_pitches, event_row["at_bat_number"], event_row["pitch_number"], event_row["pitch_type"]
         )
 
         records.append(
             {
-                "game_pk": hit["game_pk"],
-                "game_date": hit["game_date"],
-                "season": pd.to_datetime(hit["game_date"]).year,
-                "pitcher": hit["pitcher"],
-                "pitcher_name": hit["player_name"],
-                "batter": hit["batter"],
-                "stand": hit["stand"],
-                "p_throws": hit["p_throws"],
-                "at_bat_number": hit["at_bat_number"],
-                "events": hit["events"],
-                "hit_pitch_type": hit["pitch_type"],
-                "pitch_family": map_pitch_family(hit["pitch_type"]),
-                "is_cutter": is_cutter(hit["pitch_type"]),
-                "balls": hit["balls"],
-                "strikes": hit["strikes"],
-                "outs_when_up": hit["outs_when_up"],
-                "inning": hit["inning"],
-                "inning_topbot": hit["inning_topbot"],
-                "score_diff": compute_score_diff(hit),
+                "game_pk": event_row["game_pk"],
+                "game_date": event_row["game_date"],
+                "season": pd.to_datetime(event_row["game_date"]).year,
+                "pitcher": event_row["pitcher"],
+                "pitcher_name": event_row["player_name"],
+                "batter": event_row["batter"],
+                "stand": event_row["stand"],
+                "p_throws": event_row["p_throws"],
+                "at_bat_number": event_row["at_bat_number"],
+                "events": event_row["events"],
+                "hit_pitch_type": event_row["pitch_type"],
+                "pitch_family": map_pitch_family(event_row["pitch_type"]),
+                "is_cutter": is_cutter(event_row["pitch_type"]),
+                "balls": event_row["balls"],
+                "strikes": event_row["strikes"],
+                "outs_when_up": event_row["outs_when_up"],
+                "inning": event_row["inning"],
+                "inning_topbot": event_row["inning_topbot"],
+                "score_diff": compute_score_diff(event_row),
                 "baseline_usage": baseline_usage,
                 "has_next_ab": has_next_ab,
                 "next_ab_pitch_count": next_ab_pitch_count,
@@ -101,3 +115,7 @@ def build_event_dataset(pitches: pd.DataFrame) -> pd.DataFrame:
         )
 
     return pd.DataFrame.from_records(records)
+
+
+def build_event_dataset(pitches: pd.DataFrame) -> pd.DataFrame:
+    return build_event_dataset_for_events(pitches, identify_extra_base_hit_events(pitches))

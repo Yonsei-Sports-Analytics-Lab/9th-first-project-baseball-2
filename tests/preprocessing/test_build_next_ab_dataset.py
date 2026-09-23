@@ -4,9 +4,11 @@ import pandas as pd
 
 from src.preprocessing.build_next_ab_dataset import (
     build_event_dataset,
+    build_event_dataset_for_events,
     compute_baseline_usage,
     compute_score_diff,
     find_next_at_bat_pitches,
+    identify_events_by_outcome,
     identify_extra_base_hit_events,
 )
 
@@ -109,3 +111,45 @@ def test_build_event_dataset_flags_missing_next_ab_without_dropping_row():
     assert event["next_ab_pitch_count"] == 0
     assert math.isnan(event["reused_same_type"])
     assert math.isnan(event["same_type_share"])
+
+
+def test_identify_events_by_outcome_filters_by_arbitrary_event_set():
+    pitches = pd.DataFrame([
+        _pitch(events="field_out"),
+        _pitch(events="double"),
+        _pitch(events="strikeout"),
+        _pitch(events="field_out"),
+    ])
+    result = identify_events_by_outcome(pitches, {"field_out"})
+    assert len(result) == 2
+    assert set(result["events"]) == {"field_out"}
+
+
+def test_build_event_dataset_for_events_computes_identical_logic_for_a_placebo_outcome():
+    """A control-group outcome (e.g. field_out) must go through the exact
+    same feature computation as an extra-base hit -- only which rows are
+    selected as "events" differs.
+    """
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="SL"),
+        _pitch(at_bat_number=1, pitch_number=2, pitch_type="FF", events="field_out"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL"),
+        _pitch(at_bat_number=2, pitch_number=2, pitch_type="FF"),
+        _pitch(at_bat_number=2, pitch_number=3, pitch_type="FF"),
+    ])
+    placebo_events = identify_events_by_outcome(pitches, {"field_out"})
+    result = build_event_dataset_for_events(pitches, placebo_events)
+
+    assert len(result) == 1
+    event = result.iloc[0]
+    assert event["events"] == "field_out"
+    assert event["has_next_ab"] == True
+    assert event["next_ab_pitch_count"] == 3
+    assert event["reused_same_type"] == 1
+    assert event["same_type_share"] == 2 / 3
+    assert event["hit_pitch_type"] == "FF"
+    assert event["baseline_usage"] == 0.0  # only prior pitch was SL
+
+    # build_event_dataset() (the XBH-only wrapper) must still behave exactly as before
+    xbh_only = build_event_dataset(pitches)
+    assert len(xbh_only) == 0  # no double/triple/home_run in this fixture
