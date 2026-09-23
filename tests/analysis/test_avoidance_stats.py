@@ -23,6 +23,19 @@ def test_compute_season_usage_rate_computes_share_per_pitcher_season_pitch_type(
     assert row["season_usage_rate"] == 0.5
 
 
+def test_compute_season_usage_rate_ignores_pitches_with_no_pitch_type():
+    pitches = pd.DataFrame({
+        "pitcher": [1, 1, 1, 1],
+        "season": [2021, 2021, 2021, 2021],
+        "pitch_type": ["FF", "SL", None, None],
+    })
+    usage = compute_season_usage_rate(pitches)
+    assert usage["pitch_type"].notna().all()  # no bucket for "missing" that a missing event type could match
+    ff = usage[usage["pitch_type"] == "FF"].iloc[0]
+    assert ff["total"] == 2  # denominator counts only pitches with a known type
+    assert ff["season_usage_rate"] == 0.5
+
+
 def test_build_stratified_placebo_candidates_matches_quota_and_is_reproducible():
     treatment = pd.DataFrame({
         "season": [2021, 2021, 2022],
@@ -56,6 +69,28 @@ def test_build_stratified_placebo_candidates_takes_all_when_pool_smaller_than_qu
     })  # only 2 candidates available
     sample = build_stratified_placebo_candidates(pitches, treatment, {"field_out"}, seed=1)
     assert len(sample) == 2
+
+
+def test_build_stratified_placebo_candidates_applies_candidate_filter_before_sampling():
+    treatment = pd.DataFrame({
+        "season": [2021, 2021],
+        "pitch_family": ["fastball", "fastball"],
+    })  # quota: (2021, fastball) = 2
+    pitches = pd.DataFrame({
+        "events": ["field_out"] * 8,
+        "pitch_type": ["FF"] * 8,
+        "season": [2021] * 8,
+        "eligible": [True, False, False, False, False, False, False, True],
+    })
+
+    def only_eligible(_pitches, candidates):
+        return candidates[candidates["eligible"]]
+
+    sample = build_stratified_placebo_candidates(
+        pitches, treatment, {"field_out"}, seed=1, candidate_filter=only_eligible
+    )
+    assert len(sample) == 2
+    assert sample["eligible"].all()
 
 
 def test_compute_expected_reuse_prob_formula():

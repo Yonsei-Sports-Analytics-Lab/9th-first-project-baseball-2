@@ -15,6 +15,8 @@ to the mean:
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -26,10 +28,13 @@ from src.preprocessing.pitch_family import map_pitch_family
 def compute_season_usage_rate(pitches: pd.DataFrame) -> pd.DataFrame:
     """Per (pitcher, season, pitch_type): share of that pitcher's season's
     pitches that were this pitch type -- a low-noise baseline in place of
-    the within-game `baseline_usage` column.
+    the within-game `baseline_usage` column. Pitches with no pitch_type are
+    left out of both counts and totals (they belong to no type, and would
+    otherwise give a missing-type event a bogus "usage rate" to match).
     """
-    counts = pitches.groupby(["pitcher", "season", "pitch_type"], dropna=False).size().rename("n").reset_index()
-    totals = pitches.groupby(["pitcher", "season"]).size().rename("total").reset_index()
+    known = pitches.dropna(subset=["pitch_type"])
+    counts = known.groupby(["pitcher", "season", "pitch_type"]).size().rename("n").reset_index()
+    totals = known.groupby(["pitcher", "season"]).size().rename("total").reset_index()
     usage = counts.merge(totals, on=["pitcher", "season"])
     usage["season_usage_rate"] = usage["n"] / usage["total"]
     return usage
@@ -40,6 +45,7 @@ def build_stratified_placebo_candidates(
     treatment_events: pd.DataFrame,
     outcome_events: set[str],
     seed: int,
+    candidate_filter: Callable[[pd.DataFrame, pd.DataFrame], pd.DataFrame] | None = None,
 ) -> pd.DataFrame:
     """Sample pitch-level rows whose `events` is in `outcome_events` (e.g.
     {"field_out"}), stratified to match `treatment_events`' (season,
@@ -51,10 +57,17 @@ def build_stratified_placebo_candidates(
     with a null `pitch_family` are dropped from the quota). If a stratum's
     candidate pool is smaller than its quota, every available candidate in
     that stratum is used instead of raising.
+
+    `candidate_filter(pitches, candidates)` optionally narrows the candidate
+    pool BEFORE sampling (e.g. to same-batter-rematch-eligible rows), so the
+    control group is matched on the treatment group's eligible strata rather
+    than losing rows to eligibility afterwards.
     """
     quota = treatment_events.dropna(subset=["pitch_family"]).groupby(["season", "pitch_family"]).size()
 
     candidates = identify_events_by_outcome(pitches, outcome_events).copy()
+    if candidate_filter is not None:
+        candidates = candidate_filter(pitches, candidates).copy()
     candidates["pitch_family"] = candidates["pitch_type"].map(map_pitch_family)
     candidates = candidates.dropna(subset=["pitch_family"])
 

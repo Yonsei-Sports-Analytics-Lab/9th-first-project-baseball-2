@@ -30,7 +30,7 @@ REQUIRED_MODEL_COLUMNS = [
 
 # The first model fit: within has_next_ab=True (same pitcher, very next
 # batter, half-inning never ended), the catcher is essentially never
-# substituted -- only 5 of 123,079 rows had catcher_changed=1, so its
+# substituted -- only 5 of 123,044 rows had catcher_changed=1, so its
 # coefficient came out practically unidentifiable (estimate -0.43, SE 0.98).
 # Also came out isSingular=TRUE: the random-intercept variance for pitcher
 # was estimated at the zero boundary.

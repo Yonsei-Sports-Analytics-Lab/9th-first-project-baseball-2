@@ -56,6 +56,53 @@ def compute_baseline_usage(
     return float((prior["pitch_type"] == hit_pitch_type).mean())
 
 
+NEXT_PA_MODES = ("next_batter", "same_batter")
+
+
+def build_same_batter_next_pa_lookup(pitches: pd.DataFrame) -> dict[tuple[int, int, int], int]:
+    """(game_pk, batter, at_bat_number) -> at_bat_number of that same batter's
+    immediately following plate appearance in the same game (any pitcher).
+    Plate appearances with no later PA by that batter are absent.
+    """
+    pa = (
+        pitches[["game_pk", "batter", "at_bat_number"]]
+        .drop_duplicates()
+        .sort_values(["game_pk", "batter", "at_bat_number"])
+    )
+    pa["next_at_bat_number"] = pa.groupby(["game_pk", "batter"])["at_bat_number"].shift(-1)
+    pa = pa.dropna(subset=["next_at_bat_number"])
+    return {
+        (int(game_pk), int(batter), int(at_bat)): int(next_at_bat)
+        for game_pk, batter, at_bat, next_at_bat in zip(
+            pa["game_pk"], pa["batter"], pa["at_bat_number"], pa["next_at_bat_number"]
+        )
+    }
+
+
+def filter_to_same_batter_rematch(pitches: pd.DataFrame, events: pd.DataFrame) -> pd.DataFrame:
+    """Rows of `events` whose batter's immediate next PA in the same game was
+    (at least partly) thrown by the same pitcher -- i.e. events that have a
+    same-batter rematch. Cheap vectorless pre-filter so a large candidate
+    pool (e.g. every field_out) need not go through the per-event builder.
+    """
+    lookup = build_same_batter_next_pa_lookup(pitches)
+    pitcher_pas = pitches[["game_pk", "at_bat_number", "pitcher"]].drop_duplicates()
+    pitcher_pa_keys = set(
+        zip(
+            pitcher_pas["game_pk"].astype("int64"),
+            pitcher_pas["at_bat_number"].astype("int64"),
+            pitcher_pas["pitcher"].astype("int64"),
+        )
+    )
+    keep = []
+    for game_pk, batter, at_bat, pitcher in zip(
+        events["game_pk"], events["batter"], events["at_bat_number"], events["pitcher"]
+    ):
+        next_at_bat = lookup.get((int(game_pk), int(batter), int(at_bat)))
+        keep.append(next_at_bat is not None and (int(game_pk), next_at_bat, int(pitcher)) in pitcher_pa_keys)
+    return events[pd.Series(keep, index=events.index)]
+
+
 def compute_catcher_changed(event_fielder_2: float, next_first_pitch_fielder_2: float) -> float:
     """1 if the catcher (fielder_2) differs between the event pitch and the
     first pitch of the next at-bat, 0 if the same, NaN if either is missing.
@@ -65,7 +112,9 @@ def compute_catcher_changed(event_fielder_2: float, next_first_pitch_fielder_2: 
     return int(event_fielder_2 != next_first_pitch_fielder_2)
 
 
-def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.DataFrame) -> pd.DataFrame:
+def build_event_dataset_for_events(
+    pitches: pd.DataFrame, target_events: pd.DataFrame, next_pa_mode: str = "next_batter"
+) -> pd.DataFrame:
     """Compute the next-at-bat pitch-reuse feature set for an arbitrary set
     of outcome pitches (`target_events`, a row subset of `pitches`).
 
@@ -73,27 +122,53 @@ def build_event_dataset_for_events(pitches: pd.DataFrame, target_events: pd.Data
     and a placebo/control group (e.g. `field_out` events) built from
     `identify_events_by_outcome`, so the two groups are guaranteed to be
     computed with identical logic.
+
+    `next_pa_mode` picks which "next at-bat" is compared against:
+    - "next_batter" (default): the very next plate appearance in the game
+      (at_bat_number + 1), if the same pitcher threw it -- always a
+      different batter.
+    - "same_batter": the same batter's immediately following plate
+      appearance in the game (a rematch), if the same pitcher threw it.
     """
+    if next_pa_mode not in NEXT_PA_MODES:
+        raise ValueError(f"next_pa_mode must be one of {NEXT_PA_MODES}, got {next_pa_mode!r}")
+
     grouped = {key: group for key, group in pitches.groupby(["game_pk", "pitcher"])}
+    same_batter_lookup = build_same_batter_next_pa_lookup(pitches) if next_pa_mode == "same_batter" else None
     has_catcher_data = "fielder_2" in pitches.columns
 
     records = []
     for _, event_row in target_events.iterrows():
         game_pitches = grouped[(event_row["game_pk"], event_row["pitcher"])]
 
-        next_ab = find_next_at_bat_pitches(game_pitches, event_row["at_bat_number"] + 1)
+        if same_batter_lookup is None:
+            next_at_bat_number = event_row["at_bat_number"] + 1
+        else:
+            next_at_bat_number = same_batter_lookup.get(
+                (int(event_row["game_pk"]), int(event_row["batter"]), int(event_row["at_bat_number"]))
+            )
+        if next_at_bat_number is None:
+            next_ab = game_pitches.iloc[0:0]
+        else:
+            next_ab = find_next_at_bat_pitches(game_pitches, next_at_bat_number)
         has_next_ab = len(next_ab) > 0
         next_ab_pitch_count = len(next_ab)
-        if has_next_ab:
+        # An event pitch with no pitch_type has no "same type" to compare, so
+        # its reuse metrics stay NaN rather than reading as "not reused"/0%.
+        has_pitch_type = pd.notna(event_row["pitch_type"])
+        if has_next_ab and has_pitch_type:
             reused_same_type = int((next_ab["pitch_type"] == event_row["pitch_type"]).any())
             same_type_share = float((next_ab["pitch_type"] == event_row["pitch_type"]).mean())
         else:
             reused_same_type = float("nan")
             same_type_share = float("nan")
 
-        baseline_usage = compute_baseline_usage(
-            game_pitches, event_row["at_bat_number"], event_row["pitch_number"], event_row["pitch_type"]
-        )
+        if has_pitch_type:
+            baseline_usage = compute_baseline_usage(
+                game_pitches, event_row["at_bat_number"], event_row["pitch_number"], event_row["pitch_type"]
+            )
+        else:
+            baseline_usage = float("nan")
 
         record = {
             "game_pk": event_row["game_pk"],

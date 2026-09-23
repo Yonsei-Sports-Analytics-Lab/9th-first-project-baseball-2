@@ -1,6 +1,7 @@
 import math
 
 import pandas as pd
+import pytest
 
 from src.preprocessing.build_next_ab_dataset import (
     build_event_dataset,
@@ -8,6 +9,7 @@ from src.preprocessing.build_next_ab_dataset import (
     compute_baseline_usage,
     compute_catcher_changed,
     compute_score_diff,
+    filter_to_same_batter_rematch,
     find_next_at_bat_pitches,
     identify_events_by_outcome,
     identify_extra_base_hit_events,
@@ -203,3 +205,90 @@ def test_build_event_dataset_catcher_changed_is_nan_without_next_ab():
     result = build_event_dataset(pitches)
     assert len(result) == 1
     assert math.isnan(result.iloc[0]["catcher_changed"])
+
+
+def test_reuse_metrics_are_nan_when_the_event_pitch_has_no_pitch_type():
+    """A pitch with no pitch_type has no "same type" to compare: it must not
+    count as 'not reused' (reused=0), 0% baseline usage, or match a next-AB
+    pitch that is also missing (NaN == NaN is False, but 0.0 would leak in).
+    """
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="SL"),
+        _pitch(at_bat_number=1, pitch_number=2, pitch_type=None, events="double"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL"),
+        _pitch(at_bat_number=2, pitch_number=2, pitch_type=None),
+    ])
+    event = build_event_dataset(pitches).iloc[0]
+    assert event["has_next_ab"] == True
+    assert event["next_ab_pitch_count"] == 2
+    assert math.isnan(event["reused_same_type"])
+    assert math.isnan(event["same_type_share"])
+    assert math.isnan(event["baseline_usage"])
+
+
+def _rematch_fixture():
+    return pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="FF", batter=200, events="home_run"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL", batter=300),  # next batter, not a rematch
+        _pitch(at_bat_number=10, pitch_number=1, pitch_type="FF", batter=200),  # batter 200 returns
+        _pitch(at_bat_number=10, pitch_number=2, pitch_type="SL", batter=200),
+    ])
+
+
+def test_same_batter_mode_uses_the_batters_next_pa_not_the_next_batter():
+    pitches = _rematch_fixture()
+    events = identify_extra_base_hit_events(pitches)
+
+    rematch = build_event_dataset_for_events(pitches, events, next_pa_mode="same_batter").iloc[0]
+    assert rematch["has_next_ab"] == True
+    assert rematch["next_ab_pitch_count"] == 2  # AB 10, not AB 2
+    assert rematch["same_type_share"] == 0.5
+    assert rematch["reused_same_type"] == 1
+
+    default = build_event_dataset_for_events(pitches, events).iloc[0]  # unchanged default behavior
+    assert default["next_ab_pitch_count"] == 1  # AB 2 (batter 300)
+    assert default["reused_same_type"] == 0
+
+
+def test_same_batter_mode_flags_missing_when_batter_faces_a_different_pitcher_next():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="FF", batter=200, events="double"),
+        _pitch(at_bat_number=10, pitch_number=1, pitch_type="FF", batter=200, pitcher=999),
+    ])
+    result = build_event_dataset_for_events(
+        pitches, identify_extra_base_hit_events(pitches), next_pa_mode="same_batter"
+    )
+    assert result.iloc[0]["has_next_ab"] == False
+    assert result.iloc[0]["next_ab_pitch_count"] == 0
+    assert math.isnan(result.iloc[0]["reused_same_type"])
+
+
+def test_same_batter_mode_flags_missing_when_batter_never_returns():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, pitch_number=1, pitch_type="FF", batter=200, events="double"),
+        _pitch(at_bat_number=2, pitch_number=1, pitch_type="SL", batter=300),
+    ])
+    result = build_event_dataset_for_events(
+        pitches, identify_extra_base_hit_events(pitches), next_pa_mode="same_batter"
+    )
+    assert result.iloc[0]["has_next_ab"] == False
+
+
+def test_unknown_next_pa_mode_is_rejected():
+    pitches = _rematch_fixture()
+    with pytest.raises(ValueError):
+        build_event_dataset_for_events(pitches, identify_extra_base_hit_events(pitches), next_pa_mode="bogus")
+
+
+def test_filter_to_same_batter_rematch_keeps_only_events_with_a_same_pitcher_rematch():
+    pitches = pd.DataFrame([
+        _pitch(at_bat_number=1, batter=200, events="field_out"),  # returns at AB 5 vs same pitcher -> keep
+        _pitch(at_bat_number=2, batter=300, events="field_out"),  # never returns -> drop
+        _pitch(at_bat_number=3, batter=400, events="field_out"),  # returns at AB 9 vs another pitcher -> drop
+        _pitch(at_bat_number=5, batter=200),
+        _pitch(at_bat_number=9, batter=400, pitcher=999),
+    ])
+    candidates = identify_events_by_outcome(pitches, {"field_out"})
+    kept = filter_to_same_batter_rematch(pitches, candidates)
+    assert kept["at_bat_number"].tolist() == [1]
+    assert set(kept.index) <= set(candidates.index)
