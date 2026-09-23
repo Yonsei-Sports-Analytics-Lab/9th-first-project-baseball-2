@@ -28,15 +28,28 @@ REQUIRED_MODEL_COLUMNS = [
     "pitcher",
 ]
 
-# catcher_changed was dropped: within has_next_ab=True (same pitcher, very
-# next batter, half-inning never ended), the catcher is essentially never
-# substituted -- only 5 of 123,079 rows had catcher_changed=1, making the
-# coefficient practically unidentifiable (see README caveat).
-MODEL_FORMULA = (
+# The first model fit: within has_next_ab=True (same pitcher, very next
+# batter, half-inning never ended), the catcher is essentially never
+# substituted -- only 5 of 123,079 rows had catcher_changed=1, so its
+# coefficient came out practically unidentifiable (estimate -0.43, SE 0.98).
+# Also came out isSingular=TRUE: the random-intercept variance for pitcher
+# was estimated at the zero boundary.
+MODEL_FORMULA_ORIGINAL = (
     "reused_same_type ~ group * baseline_usage + balls + strikes + outs_when_up "
-    "+ score_diff + stand + pitch_family + factor(season) "
+    "+ score_diff + stand + pitch_family + factor(season) + catcher_changed "
     "+ (1 + group | pitcher)"
 )
+
+# Robustness check: drop catcher_changed (unidentifiable), and simplify the
+# random-effects structure to a random slope only -- no random intercept --
+# since the original model's intercept variance was at the zero boundary.
+MODEL_FORMULA_ROBUSTNESS = (
+    "reused_same_type ~ group * baseline_usage + balls + strikes + outs_when_up "
+    "+ score_diff + stand + pitch_family + factor(season) "
+    "+ (0 + group | pitcher)"
+)
+
+MODEL_FORMULA = MODEL_FORMULA_ROBUSTNESS  # current recommended default
 
 
 def build_combined_model_dataset(xbh_events: pd.DataFrame, placebo_events: pd.DataFrame) -> pd.DataFrame:

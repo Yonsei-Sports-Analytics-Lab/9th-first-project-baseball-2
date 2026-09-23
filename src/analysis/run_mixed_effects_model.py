@@ -1,10 +1,15 @@
-"""Fit the pitch-avoidance mixed-effects logistic regression via R's
-lme4::glmer (rpy2 bridge) and report every output requested:
+"""Fit the pitch-avoidance mixed-effects logistic regression (current
+recommended spec: MODEL_FORMULA_ROBUSTNESS, no catcher_changed, random
+slope only) via R's lme4::glmer (rpy2 bridge) and report:
 1. fixed-effects table (estimate, SE, p, odds ratio)
 2. convergence status and ICC (pitcher-level variance share)
 3. full per-pitcher random-effects table, saved to CSV
 4. top/bottom 10 pitchers by their random group-slope
 5. a predicted-vs-observed calibration table
+
+See run_mixed_effects_model_comparison.py for a side-by-side robustness
+check against the original (catcher_changed + random intercept & slope)
+specification.
 
 Requires: R (`brew install r`), the R package `lme4`
 (`Rscript -e 'install.packages("lme4")'`), and `pip install rpy2`.
@@ -18,15 +23,17 @@ src/preprocessing/data_pipeline.py after re-collecting).
 import logging
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-import rpy2.robjects as ro
-from rpy2.robjects import numpy2ri, pandas2ri
-from rpy2.robjects.packages import importr
-
-R_CONVERTER = ro.default_converter + numpy2ri.converter + pandas2ri.converter
 
 from src.analysis.avoidance_stats import build_stratified_placebo_candidates
+from src.analysis.glmer_runner import (
+    check_convergence,
+    extract_fixed_effects_table,
+    extract_pitcher_variance_components,
+    extract_predictions,
+    extract_random_effects_table,
+    fit_glmer,
+)
 from src.analysis.mixed_effects_model import (
     MODEL_FORMULA,
     build_combined_model_dataset,
@@ -58,83 +65,6 @@ def build_filtered_groups() -> tuple[pd.DataFrame, pd.DataFrame]:
     return xbh_f, placebo_f
 
 
-def fit_glmer(combined: pd.DataFrame):
-    """Runs the fit as a plain R code string (rather than calling glmer()
-    with Python kwargs) because passing an R glmerControl() object through
-    rpy2's argument conversion strips its S3 class and breaks glmer's
-    internal dispatch -- building the call in R avoids that entirely.
-    """
-    ro.r("library(lme4)")
-    with R_CONVERTER.context():
-        r_df = ro.conversion.get_conversion().py2rpy(combined)
-        ro.globalenv["model_data"] = r_df
-    ro.r(f"""
-    model <- glmer(
-        {MODEL_FORMULA},
-        data = model_data,
-        family = binomial,
-        nAGQ = 0,
-        control = glmerControl(optimizer = "bobyqa")
-    )
-    """)
-    return ro.globalenv["model"]
-
-
-def extract_fixed_effects_table(model) -> pd.DataFrame:
-    base = importr("base")
-    stats_r = importr("stats")
-    coefs = stats_r.coef(base.summary(model))
-    with R_CONVERTER.context():
-        df = ro.conversion.get_conversion().rpy2py(base.as_data_frame(coefs))
-    df = df.reset_index().rename(
-        columns={
-            "index": "term",
-            "Estimate": "estimate",
-            "Std. Error": "std_error",
-            "z value": "z_value",
-            "Pr(>|z|)": "p_value",
-        }
-    )
-    df["odds_ratio"] = np.exp(df["estimate"])
-    return df
-
-
-def check_convergence() -> str:
-    msg = ro.r("if (is.null(model@optinfo$conv$lme4$messages)) 'OK: no convergence warnings' "
-               "else paste(model@optinfo$conv$lme4$messages, collapse='; ')")
-    singular = bool(ro.r("isSingular(model)")[0])
-    return f"{msg[0]}; isSingular={singular}" + (
-        " (경계값 적합: 일부 분산 성분이 0에 매우 가까움 -- 아래 투수 절편 분산 참고)" if singular else ""
-    )
-
-
-def extract_pitcher_variance_components() -> tuple[float, float, float]:
-    """Returns (intercept_variance, group_slope_variance, correlation)."""
-    pitcher_vc = ro.r("as.data.frame(VarCorr(model))")
-    with R_CONVERTER.context():
-        vc_df = ro.conversion.get_conversion().rpy2py(pitcher_vc)
-    intercept_var = vc_df.loc[(vc_df["grp"] == "pitcher") & (vc_df["var1"] == "(Intercept)") & vc_df["var2"].isna(), "vcov"].iloc[0]
-    group_var = vc_df.loc[(vc_df["grp"] == "pitcher") & (vc_df["var1"] == "group") & vc_df["var2"].isna(), "vcov"].iloc[0]
-    corr_row = vc_df.loc[(vc_df["grp"] == "pitcher") & (vc_df["var2"] == "group")]
-    corr = float(corr_row["sdcor"].iloc[0]) if len(corr_row) else float("nan")
-    return float(intercept_var), float(group_var), corr
-
-
-def extract_random_effects_table() -> pd.DataFrame:
-    pitcher_ranef = ro.r("as.data.frame(ranef(model)$pitcher)")
-    with R_CONVERTER.context():
-        df = ro.conversion.get_conversion().rpy2py(pitcher_ranef)
-    df = df.reset_index().rename(columns={"index": "pitcher", "(Intercept)": "re_intercept", "group": "re_group"})
-    return df
-
-
-def extract_predictions() -> np.ndarray:
-    preds = ro.r('predict(model, type="response")')
-    with R_CONVERTER.context():
-        arr = ro.conversion.get_conversion().rpy2py(preds)
-    return np.asarray(arr)
-
-
 def run() -> None:
     xbh_f, placebo_f = build_filtered_groups()
     combined_raw = pd.concat([xbh_f.assign(group=1), placebo_f.assign(group=0)], ignore_index=True)
@@ -164,19 +94,22 @@ def run() -> None:
         .reset_index()
     )
 
-    logger.info("glmer 적합 중 (nAGQ=0, bobyqa)... 수 분 걸릴 수 있음")
-    model = fit_glmer(combined)
+    logger.info("glmer 적합 중 (nAGQ=0, bobyqa)... 공식: %s", MODEL_FORMULA)
+    fit_glmer(combined, MODEL_FORMULA)
     logger.info("=== 수렴 상태 ===\n%s", check_convergence())
 
-    fixed_effects = extract_fixed_effects_table(model)
+    fixed_effects = extract_fixed_effects_table()
     pd.set_option("display.max_rows", None, "display.width", 160)
     logger.info("=== 고정효과 ===\n%s", fixed_effects.to_string(index=False))
 
     intercept_var, group_var, corr = extract_pitcher_variance_components()
-    icc = compute_icc(intercept_var)
+    icc = compute_icc(intercept_var) if intercept_var is not None else None
     logger.info(
-        "=== 랜덤효과 분산 성분 === 투수 절편 분산=%.4f, group 기울기 분산=%.4f, 상관=%.3f, ICC=%.4f",
-        intercept_var, group_var, corr, icc,
+        "=== 랜덤효과 분산 성분 === 투수 절편 분산=%s, group 기울기 분산=%.4f, 상관=%s, ICC=%s",
+        f"{intercept_var:.4f}" if intercept_var is not None else "N/A (랜덤 절편 없음)",
+        group_var,
+        f"{corr:.3f}" if corr == corr else "N/A",
+        f"{icc:.4f}" if icc is not None else "N/A (랜덤 절편 없음)",
     )
 
     random_effects = extract_random_effects_table()
