@@ -1,11 +1,16 @@
+import numpy as np
 import pandas as pd
 import pytest
 
 from src.analysis.avoidance_stats import (
+    bootstrap_relative_reduction_ci,
+    relative_reduction,
+    summarize_reuse_rate_reduction,
     build_stratified_placebo_candidates,
     compute_expected_reuse_prob,
     compute_season_usage_rate,
     match_treatment_to_control,
+    summarize_avoidance_by_level,
     summarize_diff_in_diff,
     summarize_paired_diff,
 )
@@ -147,6 +152,83 @@ def test_match_treatment_to_control_trims_treatment_to_the_controls_stratum_coun
     counts = matched.groupby("pitcher").size().to_dict()
     assert counts == {1: 2, 2: 1}  # pitcher 1 trimmed 3->2, pitcher 2 kept (1 treatment), pitcher 3 dropped
     assert matched["id"].isin(treatment["id"]).all()
+
+
+def _events(pitch_type, baselines, shares, reused, n_pitches=4):
+    return pd.DataFrame({
+        "hit_pitch_type": pitch_type,
+        "has_next_ab": True,
+        "season_usage_rate": baselines,
+        "same_type_share": shares,
+        "reused_same_type": reused,
+        "next_ab_pitch_count": n_pitches,
+    })
+
+
+def test_summarize_avoidance_by_level_reports_net_drop_and_reuse_per_level_and_filters_small_ones():
+    xbh = pd.concat([
+        _events("FF", [0.4] * 4, [0.1, 0.3, 0.2, 0.2], [0, 1, 1, 0]),   # drop 0.2 on average
+        _events("SL", [0.3] * 4, [0.0, 0.2, 0.1, 0.1], [0, 1, 0, 0]),
+        _events("KN", [0.3] * 1, [0.0], [0]),                              # too few events -> dropped
+    ])
+    placebo = pd.concat([
+        _events("FF", [0.4] * 4, [0.3, 0.5, 0.4, 0.4], [1, 1, 1, 0]),   # drop 0.0
+        _events("SL", [0.3] * 4, [0.2, 0.4, 0.3, 0.3], [1, 1, 1, 0]),
+        _events("KN", [0.3] * 1, [0.3], [1]),
+    ])
+    table = summarize_avoidance_by_level(xbh, placebo, by="hit_pitch_type", baseline_col="season_usage_rate", min_n=4)
+
+    assert table["hit_pitch_type"].tolist() == ["FF", "SL"]
+    ff = table[table["hit_pitch_type"] == "FF"].iloc[0]
+    assert ff["xbh_drop"] == pytest.approx(0.2)
+    assert ff["placebo_drop"] == pytest.approx(0.0)
+    assert ff["net_drop"] == pytest.approx(0.2)
+    assert ff["reuse_xbh"] == pytest.approx(0.5)
+    assert ff["reuse_placebo"] == pytest.approx(0.75)
+    assert ff["n_xbh"] == 4 and ff["n_placebo"] == 4
+    assert ff["net_ci_low"] < ff["net_drop"] < ff["net_ci_high"]
+
+
+def test_relative_reduction_applies_the_placebo_change_to_the_expected_usage():
+    # placebo usage falls 0.40 -> 0.30, so without the hit the XBH group would have gone 0.40 -> 0.30
+    assert relative_reduction(0.40, 0.20, 0.40, 0.30) == pytest.approx(1 - 0.20 / 0.30)
+    # placebo usage rises 0.30 -> 0.40 (drop -0.10): expected post = 0.30 + 0.10
+    assert relative_reduction(0.30, 0.20, 0.30, 0.40) == pytest.approx(1 - 0.20 / 0.40)
+
+
+def test_bootstrap_relative_reduction_ci_brackets_the_estimate_and_is_reproducible():
+    rng = np.random.default_rng(0)
+    xbh_base = rng.normal(0.40, 0.05, 300)
+    xbh_post = xbh_base - rng.normal(0.15, 0.05, 300)
+    placebo_base = rng.normal(0.40, 0.05, 300)
+    placebo_post = placebo_base - rng.normal(0.02, 0.05, 300)
+    low, high = bootstrap_relative_reduction_ci(xbh_base, xbh_post, placebo_base, placebo_post, n_boot=300, seed=1)
+    point = relative_reduction(xbh_base.mean(), xbh_post.mean(), placebo_base.mean(), placebo_post.mean())
+    assert low < point < high
+    again = bootstrap_relative_reduction_ci(xbh_base, xbh_post, placebo_base, placebo_post, n_boot=300, seed=1)
+    assert (low, high) == again
+
+
+def test_summarize_reuse_rate_reduction_orders_by_requested_levels_and_adds_reuse_diff_ci():
+    xbh = pd.concat([
+        _events("SL", [0.3] * 4, [0.0, 0.2, 0.1, 0.1], [0, 1, 0, 0]),
+        _events("FF", [0.4] * 4, [0.1, 0.3, 0.2, 0.2], [0, 1, 1, 0]),
+    ])
+    placebo = pd.concat([
+        _events("SL", [0.3] * 4, [0.2, 0.4, 0.3, 0.3], [1, 1, 1, 0]),
+        _events("FF", [0.4] * 4, [0.3, 0.5, 0.4, 0.4], [1, 1, 1, 0]),
+    ])
+    table = summarize_reuse_rate_reduction(
+        xbh, placebo, by="hit_pitch_type", baseline_col="season_usage_rate", levels=["FF", "SL", "KN"], n_boot=50, seed=1
+    )
+    assert table["hit_pitch_type"].tolist() == ["FF", "SL"]  # requested order; missing level skipped
+    ff = table.iloc[0]
+    assert ff["xbh_baseline"] == pytest.approx(0.4) and ff["xbh_post"] == pytest.approx(0.2)
+    assert ff["net_drop"] == pytest.approx(0.2)
+    assert ff["relative_reduction"] == pytest.approx(1 - 0.2 / 0.4)  # placebo drop is 0
+    assert ff["reuse_diff"] == pytest.approx(0.5 - 0.75)
+    assert ff["reuse_diff_ci_low"] < ff["reuse_diff"] < ff["reuse_diff_ci_high"]
+    assert ff["rel_ci_low"] <= ff["relative_reduction"] <= ff["rel_ci_high"]
 
 
 def test_compute_expected_reuse_prob_formula():

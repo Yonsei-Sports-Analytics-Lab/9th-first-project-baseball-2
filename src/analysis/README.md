@@ -23,6 +23,10 @@
   * `match_treatment_to_control()`: 같은 투수 매칭처럼 대조군이 모든 층을 못 채울 때, 장타 쪽을 대조군의 층별 건수에 맞춰 1:1로 줄임
   * `summarize_paired_diff()` / `summarize_diff_in_diff()`: 짝지은 비교 / 대조군 대비 diff-in-diff 비교 (평균, 신뢰구간, t-test, Wilcoxon/Mann-Whitney)
 * `run_same_batter_rematch_analysis.py`: **[메인]** 같은 타자 재대결 이벤트를 만들고, 경기 내/시즌 baseline 대비 감소 → placebo 넷팅 diff-in-diff(전체·구종 계열·시즌·baseline>0) → 이진 재사용 지표 → 혼합효과 회귀 → 동타/이타(platoon) 모델·좌우/구종별 스플릿 → 같은 투수 매칭 robustness까지 실행하는 진입점 (R이 없으면 혼합효과 이후만 생략). 이벤트 파일을 `data/processed/`에 저장해 다른 스크립트가 재사용
+* `run_pitch_type_avoidance_analysis.py`: **[메인]** 장타를 맞은 구종별로 대조군 넷팅 순수 감소, 재사용률, 기대 대비 재사용 gap, 구종별 혼합 로지스틱 `group` 오즈비를 구하고 "구종에 따라 회피 강도가 다른가"를 우도비 검정하는 진입점 (R 필요, 결과 `pitch_type_avoidance_summary.csv`)
+  * `avoidance_stats.summarize_avoidance_by_level()`: 어떤 컬럼의 수준별로든 위 요약 표를 만드는 순수 함수
+* `run_pitch_type_reuse_rate_analysis.py`: **[메인]** 7개 구종(FF·SI·SL·CH·FC·CU·ST)별로 사전 구사율 → 재대결 구사율 감소, 대조군 보정 순수 감소(%p)와 상대 감소율(부트스트랩 CI), 재사용률(한 번이라도 다시 던진 비율) 차이를 요약해 `pitch_type_reuse_rate_reduction.csv`로 저장하는 진입점 (R 불필요). 그림은 `src/visualization/pitch_type_reuse_plots.py`
+  * `avoidance_stats.relative_reduction()` / `bootstrap_relative_reduction_ci()` / `summarize_reuse_rate_reduction()`: 상대 감소율(= 1 − 재구사율 / (사전 구사율 − 대조군 변화))과 구종별 요약 표를 만드는 순수 함수
 * `intensive_margin.py`: **[메인]** Intensive margin용 순수 함수 — 투수·시즌·구종별 baseline(위치는 타자 타석별), 코스/무브먼트/구속 편차, pre/post 투구 관측 수집
 * `run_intensive_margin_analysis.py`: **[메인]** 재사용한 이벤트에서 코스·무브먼트·구속 편차가 장타 후 달라지는지를 outcome별 선형 혼합모델 3종(요청 스펙 / 이벤트 랜덤효과 추가 / 대조군 포함 `group × time`)으로 검정하고, 투수별 랜덤효과를 사례연구용으로 저장하는 진입점 (R 필요)
 * `run_pitch_avoidance_analysis.py`: **[보조]** 3단계 검증(경기 내 기준선 → 시즌 기준선 → placebo diff-in-diff)을 순서대로 실행하고 요약 로그를 출력하는 진입점

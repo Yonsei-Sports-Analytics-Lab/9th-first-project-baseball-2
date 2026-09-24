@@ -52,6 +52,8 @@
 | ⑥ 동타/이타(platoon) 혼합모델 | `platoon_match` 오즈비 1.145 [1.082, 1.212] (p<0.001), `group × platoon_match` 오즈비 **0.962** [0.894, 1.036] (p=0.30) — 회피 효과가 동타/이타에 따라 다르다는 증거 없음 |
 | ⑥ 순수 감소 스플릿 (시즌 baseline) | 이타 13.7%p vs 동타 15.0%p, 타자 좌/우 14.3%p 대 14.3%p, 투수 좌/우 14.2%p 대 14.3%p. 구종별(표본 300건 이상)은 FF 11.7%p ~ FS 19.0%p |
 | ⑦ 투수 단위 매칭 (같은 투수×시즌×구종계열의 `field_out`만 대조군) | 장타의 98.5%(28,328건, 839명)가 1:1 매칭. 순수 감소 14.4%p / 15.2%p로 층화 매칭(14.3 / 15.2)과 동일, `group` 오즈비 0.296 대 0.278, `group × baseline_usage` 1.86 대 2.30(둘 다 p<0.001), 투수별 랜덤 기울기 상관 Pearson 0.994 / Spearman 0.986 |
+| ⑨ 구종별 회피 (9개 구종, `run_pitch_type_avoidance_analysis.py`) | 전 구종에서 회피(`group` 오즈비 0.22~0.50, 모두 CI가 1에서 멀음), 구종에 따라 강도가 다름(우도비 검정 χ²=142.8, df=8, p<0.001). FF가 가장 약하고(0.50) FS·CU·FC·CH가 가장 강함(0.22~0.25) |
+| ⑩ 구종별 재구사율 감소 (7개 구종 FF·SI·SL·CH·FC·CU·ST, `run_pitch_type_reuse_rate_analysis.py`) | 재대결 구사율이 사전 대비 장타 후 크게 줄고(전체 30.0% → 19.0%), 대조군 보정 순수 감소는 포심 11.7%p ~ 체인지업 16.3%p(전체 14.2%p), 상대 감소율은 포심 30% ~ 커브 63%(전체 43%). 재사용률은 장타 46.3% vs 대조군 67.8% |
 | ⑧ Intensive margin (재사용한 이벤트만: 장타 13,103건, 대조군 19,400건) | 대조군 대비 변화(`group × time`): 코스 **+0.019 ft** [0.009, 0.028] (p=0.0002, 약 0.2인치), 무브먼트 +0.0014 ft (p=0.24), 구속 −0.003 mph (p=0.78) |
 
 * ⑧의 대조군 없는 pre→post 구속 변화는 −0.32 mph이지만 대조군도 −0.37 mph 떨어집니다. 경기가 진행되며(피로 등) 생기는 변화이고 장타에 대한 반응이 아닙니다. 그래서 Intensive margin은 대조군 대비 값을 기준으로 봅니다.
@@ -90,7 +92,7 @@
   * `preprocessing/`: 이벤트 데이터셋 생성(`build_next_ab_dataset.py`, 다음 타자/같은 타자 재대결 두 모드), 구종 계열 분류, 분포 리포트, 전체 파이프라인(`data_pipeline.py`)
   * `analysis/`: 같은 타자 재대결 분석(메인), 다음 타자 기준 회피 가설 검증(시즌 baseline, placebo diff-in-diff), 혼합효과 로지스틱 회귀(R `lme4` 연동)
   * `models/`, `utils/`, `visualization/`: 아직 사용 전 (폴더별 README 참고)
-* `tests/`: 순수 함수 단위 테스트 (68개)
+* `tests/`: 순수 함수 단위 테스트 (77개)
 * `docs/`: 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
 * `requirements.txt`: 프로젝트 실행에 필요한 파이썬 패키지 목록
 
@@ -158,6 +160,13 @@ python -m src.analysis.run_same_batter_rematch_analysis
 
 # 3-1. [메인] Intensive margin (코스·무브먼트·구속 편차, 3.의 이벤트 파일을 재사용, 약 2분, R 필요)
 python -m src.analysis.run_intensive_margin_analysis
+
+# 3-2. [메인] 구종별 회피 (3.의 이벤트 파일을 재사용, 약 10초, R 필요)
+python -m src.analysis.run_pitch_type_avoidance_analysis
+
+# 3-3. [메인] 7개 구종 재구사율 감소 요약 + 그림 3장 (약 10초, R 불필요, 그림은 data/processed/figures/)
+python -m src.analysis.run_pitch_type_reuse_rate_analysis
+python -m src.visualization.pitch_type_reuse_plots
 
 # 4. [보조] 다음 타자 기준 회피 가설 검증 (경기 내 baseline → 시즌 baseline → placebo diff-in-diff)
 python -m src.analysis.run_pitch_avoidance_analysis
