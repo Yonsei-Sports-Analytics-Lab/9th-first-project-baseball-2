@@ -9,9 +9,10 @@ a consolidated summary:
    events, built through the identical next-at-bat logic -- nets out any
    generic post-pitch drift that isn't specific to allowing an XBH.
 
-Requires data/raw and data/processed/pitch_reuse_after_xbh_events.parquet
-to already exist (see src/collection/statcast_scraper.py and
-src/preprocessing/data_pipeline.py).
+Requires data/raw, the team's research CSVs in data/research/ (the analysis
+sample, see src/preprocessing/research_sample.py) and
+data/processed/pitch_reuse_after_xbh_events.parquet to already exist (see
+src/collection/statcast_scraper.py and src/preprocessing/data_pipeline.py).
 """
 
 import logging
@@ -30,7 +31,7 @@ from src.analysis.avoidance_stats import (
     summarize_paired_diff,
 )
 from src.preprocessing.build_next_ab_dataset import build_event_dataset_for_events
-from src.preprocessing.load_raw_pitches import load_all_pitches
+from src.preprocessing.research_sample import load_research_pitches
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ def run() -> None:
     if not XBH_EVENTS_PATH.exists():
         raise FileNotFoundError(f"{XBH_EVENTS_PATH} 이 없습니다. 먼저 src/preprocessing/data_pipeline.py를 실행하세요.")
 
-    pitches = load_all_pitches()
+    pitches = load_research_pitches()
     xbh = pd.read_parquet(XBH_EVENTS_PATH)
     logger.info("원본 투구 %d건, XBH 이벤트 %d건 로드 완료", len(pitches), len(xbh))
 

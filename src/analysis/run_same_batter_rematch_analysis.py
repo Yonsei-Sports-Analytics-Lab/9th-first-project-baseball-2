@@ -6,6 +6,9 @@ extra-base hits where the same pitcher faces the SAME batter again in that
 batter's immediately following plate appearance of the game, and asks
 whether the pitcher avoids the pitch type that batter just hit.
 
+The sample is the team's research sample (data/raw restricted to the rows in
+the research CSVs, see src/preprocessing/research_sample.py).
+
 Everything is built with the exact same event builder as the other analysis
 (build_event_dataset_for_events with next_pa_mode="same_batter"), and the
 placebo group (field_out) is drawn only from field_outs that also have a
@@ -52,7 +55,7 @@ from src.preprocessing.build_next_ab_dataset import (
     filter_to_same_batter_rematch,
     identify_extra_base_hit_events,
 )
-from src.preprocessing.load_raw_pitches import load_all_pitches
+from src.preprocessing.research_sample import load_research_pitches
 
 try:
     from src.analysis.glmer_runner import (
@@ -91,7 +94,7 @@ KEY_TERMS = ["group", "group:baseline_usage", "platoon_match", "group:platoon_ma
 
 
 def load_pitches(extra_columns: tuple[str, ...] = ()) -> pd.DataFrame:
-    return load_all_pitches()[NEEDED_COLUMNS + list(extra_columns)].copy()
+    return load_research_pitches()[NEEDED_COLUMNS + list(extra_columns)].copy()
 
 
 def attach_season_usage(events: pd.DataFrame, season_usage: pd.DataFrame) -> pd.DataFrame:

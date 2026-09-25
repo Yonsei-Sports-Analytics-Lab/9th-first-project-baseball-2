@@ -27,6 +27,7 @@
   * `avoidance_stats.summarize_avoidance_by_level()`: 어떤 컬럼의 수준별로든 위 요약 표를 만드는 순수 함수
 * `run_pitch_type_reuse_rate_analysis.py`: **[메인]** 7개 구종(FF·SI·SL·CH·FC·CU·ST)별로 사전 구사율 → 재대결 구사율 감소, 대조군 보정 순수 감소(%p)와 상대 감소율(부트스트랩 CI), 재사용률(한 번이라도 다시 던진 비율) 차이를 요약해 `pitch_type_reuse_rate_reduction.csv`로 저장하는 진입점 (R 불필요). 그림은 `src/visualization/pitch_type_reuse_plots.py`
   * `avoidance_stats.relative_reduction()` / `bootstrap_relative_reduction_ci()` / `summarize_reuse_rate_reduction()`: 상대 감소율(= 1 − 재구사율 / (사전 구사율 − 대조군 변화))과 구종별 요약 표를 만드는 순수 함수
+* `run_outcome_anchor_check.py`: **[진단]** 재대결 설계 그대로, 앵커 투구의 결과(장타·단타·볼넷·삼진·field_out)와 결과 없는 첫 투구별로 다음 재대결 구사율 변화를 비교해, 대조군 사용 비중 증가가 "성공 강화"인지 "같은 경기 내 구종 지속"인지 가리는 스크립트
 * `intensive_margin.py`: **[메인]** Intensive margin용 순수 함수 — 투수·시즌·구종별 baseline(위치는 타자 타석별), 코스/무브먼트/구속 편차, pre/post 투구 관측 수집
 * `run_intensive_margin_analysis.py`: **[메인]** 재사용한 이벤트에서 코스·무브먼트·구속 편차가 장타 후 달라지는지를 outcome별 선형 혼합모델 3종(요청 스펙 / 이벤트 랜덤효과 추가 / 대조군 포함 `group × time`)으로 검정하고, 투수별 랜덤효과를 사례연구용으로 저장하는 진입점 (R 필요)
 * `run_pitch_avoidance_analysis.py`: **[보조]** 3단계 검증(경기 내 기준선 → 시즌 기준선 → placebo diff-in-diff)을 순서대로 실행하고 요약 로그를 출력하는 진입점
@@ -37,7 +38,7 @@
 
 ## 🔄 실행 방법
 
-`data/raw`(fielder_2 포함)와 `data/processed/pitch_reuse_after_xbh_events.parquet`가 이미 있어야 합니다 (없다면 `src/collection/statcast_scraper.py` → `src/preprocessing/data_pipeline.py` 순서로 먼저 실행).
+`data/raw`(fielder_2 포함), 팀 공유 research CSV(`data/research/`, [설명](../../data/research/README.md)), `data/processed/pitch_reuse_after_xbh_events.parquet`가 이미 있어야 합니다 (없다면 `src/collection/statcast_scraper.py` → `src/preprocessing/data_pipeline.py` 순서로 먼저 실행). 모든 분석 스크립트는 `data/raw` 중 research CSV에 있는 투구만 씁니다(`src/preprocessing/research_sample.py`).
 
 ```bash
 python -m src.analysis.run_same_batter_rematch_analysis   # 메인
@@ -61,4 +62,4 @@ python -m src.analysis.run_mixed_effects_model_comparison
 * 재대결 기준 이벤트: `pitch_reuse_after_xbh_same_batter_rematch_events.parquet`, `pitch_reuse_placebo_same_batter_rematch_events.parquet`
 * 재대결 기준 투수별 랜덤효과: `pitch_avoidance_same_batter_rematch_random_effects.csv`
 
-**참고:** `catcher_changed`는 정의상 "같은 투수가 던지는 바로 다음 타석" 구간(`has_next_ab=True`)에서만 계산되는데, 포수는 하프이닝 도중 거의 교체되지 않아 전체 표본(123,044건) 중 1이 5건뿐입니다. 회귀계수가 사실상 추정 불가능해서(표준오차가 매우 큼) `MODEL_FORMULA`에서 제외했습니다 — 원본 이벤트 데이터셋에는 컬럼 자체는 여전히 남아있습니다.
+**참고:** `catcher_changed`는 정의상 "같은 투수가 던지는 바로 다음 타석" 구간(`has_next_ab=True`)에서만 계산되는데, 포수는 하프이닝 도중 거의 교체되지 않아 전체 표본(109,198건) 중 1이 4건뿐입니다. 회귀계수가 사실상 추정 불가능해서(표준오차가 매우 큼) `MODEL_FORMULA`에서 제외했습니다 — 원본 이벤트 데이터셋에는 컬럼 자체는 여전히 남아있습니다.

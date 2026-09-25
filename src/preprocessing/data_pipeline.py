@@ -1,4 +1,5 @@
-"""End-to-end pipeline: load raw Statcast pitches, report pitch-type /
+"""End-to-end pipeline: load the team's research sample of Statcast pitches
+(data/raw restricted to the rows in the research CSVs), report pitch-type /
 pitch-family distributions, and build the next-at-bat pitch-reuse dataset.
 """
 
@@ -6,7 +7,7 @@ import logging
 from pathlib import Path
 
 from src.preprocessing.build_next_ab_dataset import build_event_dataset, identify_extra_base_hit_events
-from src.preprocessing.load_raw_pitches import load_all_pitches
+from src.preprocessing.research_sample import load_research_pitches
 from src.preprocessing.pitch_type_distribution import (
     family_distribution_by_season,
     pitch_family_frequency,
@@ -21,8 +22,8 @@ OUTPUT_BASENAME = "pitch_reuse_after_xbh_events"
 
 
 def run() -> None:
-    pitches = load_all_pitches()
-    logger.info("원본 투구 데이터 로드 완료: %d건", len(pitches))
+    pitches = load_research_pitches()
+    logger.info("research 표본 투구 데이터 로드 완료: %d건 (투수 %d명)", len(pitches), pitches["pitcher"].nunique())
 
     xbh_pitches = identify_extra_base_hit_events(pitches)
 

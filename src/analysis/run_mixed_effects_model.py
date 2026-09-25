@@ -15,9 +15,10 @@ Requires: R (`brew install r`), the R package `lme4`
 (`Rscript -e 'install.packages("lme4")'`), and `pip install rpy2`.
 
 Requires data/raw (with fielder_2 -- re-collect via
-src/collection/statcast_scraper.py if missing) and
+src/collection/statcast_scraper.py if missing), the team's research CSVs in
+data/research/ (see src/preprocessing/research_sample.py) and
 data/processed/pitch_reuse_after_xbh_events.parquet (rebuild via
-src/preprocessing/data_pipeline.py after re-collecting).
+src/preprocessing/data_pipeline.py).
 """
 
 import logging
@@ -42,7 +43,7 @@ from src.analysis.mixed_effects_model import (
     rank_pitchers_by_group_slope,
 )
 from src.preprocessing.build_next_ab_dataset import build_event_dataset_for_events
-from src.preprocessing.load_raw_pitches import load_all_pitches
+from src.preprocessing.research_sample import load_research_pitches
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ PLACEBO_SEED = 20260923
 
 
 def build_filtered_groups() -> tuple[pd.DataFrame, pd.DataFrame]:
-    pitches = load_all_pitches()
+    pitches = load_research_pitches()
     xbh = pd.read_parquet(XBH_EVENTS_PATH)
     placebo_candidates = build_stratified_placebo_candidates(pitches, xbh, PLACEBO_OUTCOME_EVENTS, seed=PLACEBO_SEED)
     placebo = build_event_dataset_for_events(pitches, placebo_candidates)

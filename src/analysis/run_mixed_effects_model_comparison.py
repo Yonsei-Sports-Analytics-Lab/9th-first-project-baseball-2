@@ -3,11 +3,12 @@
 - ORIGINAL: catcher_changed included, random intercept & slope
   (1 + group | pitcher) -- came out isSingular=TRUE (pitcher intercept
   variance at the zero boundary), and catcher_changed was practically
-  unidentifiable (only 5 of 123,079 rows have catcher_changed=1).
+  unidentifiable (only 4 of 109,198 rows have catcher_changed=1 in the
+  research sample).
 - ROBUSTNESS: catcher_changed dropped, random slope only
   (0 + group | pitcher).
 
-Both are fit on the exact same 123,044-row combined dataset, and this
+Both are fit on the exact same 109,198-row combined dataset, and this
 script reports: a side-by-side fixed-effects table, both models'
 convergence/variance components, the Pearson/Spearman correlation between
 the two models' per-pitcher random group-slopes, the robustness model's
@@ -38,7 +39,7 @@ from src.analysis.mixed_effects_model import (
     rank_pitchers_by_group_slope,
 )
 from src.preprocessing.build_next_ab_dataset import build_event_dataset_for_events
-from src.preprocessing.load_raw_pitches import load_all_pitches
+from src.preprocessing.research_sample import load_research_pitches
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ MIN_XBH_SAMPLE_FOR_RANKING = 100
 
 
 def build_dataset() -> tuple[pd.DataFrame, pd.DataFrame]:
-    pitches = load_all_pitches()
+    pitches = load_research_pitches()
     xbh = pd.read_parquet(XBH_EVENTS_PATH)
     placebo_candidates = build_stratified_placebo_candidates(pitches, xbh, PLACEBO_OUTCOME_EVENTS, seed=PLACEBO_SEED)
     placebo = build_event_dataset_for_events(pitches, placebo_candidates)
