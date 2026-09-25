@@ -17,7 +17,7 @@
 
 ## 📌 핵심 결과 (2026-09-25 기준)
 
-데이터: 팀 공유 research CSV 표본 — 2021 시즌 ~ 2026-07-12 정규시즌, 투수-시즌 투구 수 500 이상(2026은 300 이상)인 투수 1,067명의 투구 3,592,302건 ([정의](data/research/README.md)). 아래 수치는 모두 이 표본 기준입니다.
+데이터: 팀 공유 research CSV 표본 — 2021 시즌 ~ 2026-07-12 정규시즌, 투수-시즌 투구 수 500 이상(2026은 300 이상)인 투수 1,067명의 투구 3,592,302건 ([Google Drive](https://drive.google.com/drive/folders/1nP5Z0f7q1cNftgKkVTsWe329ishi8iUM), [정의](data/research/README.md)). 아래 수치는 모두 이 표본 기준입니다.
 
 ### 메인: 같은 타자 재대결 (장타 27,371건 vs 대조군 `field_out` 27,371건)
 
@@ -149,7 +149,7 @@
 
 ### 분석 재현 순서
 
-`data/raw`, `data/research`, `data/processed`는 `.gitignore` 대상이라 저장소에 없습니다. 팀 공유 research CSV 6개(`statcast_<연도>_min500_research.csv`, 2026은 `min300`)를 공유 드라이브에서 받아 `data/research/`에 넣고, 아래 순서로 로컬에서 다시 생성하세요 (모두 저장소 루트에서 실행). 이후 모든 단계는 `data/raw` 중 CSV에 있는 행만 씁니다(`src/preprocessing/research_sample.py`). CSV 위치를 바꾸려면 `RESEARCH_SAMPLE_DIR` 환경변수를 지정하세요. 파일명은 `statcast_<연도>_min<컷오프>_research.csv` 형식이어야 하며, 형식이 어긋난 `statcast_*.csv`(예: 다운로드하며 붙은 ` (1)`)가 있으면 로더가 에러로 알려 줍니다.
+`data/raw`, `data/research`, `data/processed`는 `.gitignore` 대상이라 저장소에 없습니다. 팀 공유 research CSV 6개(`statcast_<연도>_min500_research.csv`, 2026은 `min300`)를 [공유 드라이브](https://drive.google.com/drive/folders/1nP5Z0f7q1cNftgKkVTsWe329ishi8iUM)에서 받아 `data/research/`에 넣고, 아래 순서로 로컬에서 다시 생성하세요 (모두 저장소 루트에서 실행). 이후 모든 단계는 `data/raw` 중 CSV에 있는 행만 씁니다(`src/preprocessing/research_sample.py`). CSV 위치를 바꾸려면 `RESEARCH_SAMPLE_DIR` 환경변수를 지정하세요. 파일명은 `statcast_<연도>_min<컷오프>_research.csv` 형식이어야 하며, 형식이 어긋난 `statcast_*.csv`(예: 다운로드하며 붙은 ` (1)`)가 있으면 로더가 에러로 알려 줍니다.
 
 ```bash
 # 1. Statcast 수집 (2021-03 ~ 2026-07-14, 네트워크에 따라 약 10~20분). 중단돼도 재실행하면 이어서 받음

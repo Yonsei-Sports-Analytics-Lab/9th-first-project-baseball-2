@@ -1,6 +1,6 @@
 # 📂 Research Sample (팀 공유 분석 표본 CSV)
 
-팀 전체가 같은 표본으로 분석하기 위한 CSV를 두는 폴더입니다. CSV 파일은 용량이 커서(약 850MB) `.gitignore` 대상이며, 공유 드라이브에서 받아 이 폴더에 넣습니다.
+팀 전체가 같은 표본으로 분석하기 위한 CSV를 두는 폴더입니다. CSV 파일은 용량이 커서(약 850MB) `.gitignore` 대상이며, [공유 드라이브](https://drive.google.com/drive/folders/1nP5Z0f7q1cNftgKkVTsWe329ishi8iUM)에서 받아 이 폴더에 넣습니다.
 
 ## 파일
 
