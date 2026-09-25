@@ -2,7 +2,7 @@
 
 2026-09-25 기준, 모든 수치는 현재 `data/processed/` 파일에서 직접 센 값입니다. 파일은 `.gitignore` 대상이라 각자 아래 "생성 코드"로 다시 만들어야 합니다.
 
-**표본:** 팀 공유 research CSV(투수-시즌 투구 수 ≥ 500, 2026은 ≥ 300, 2026-07-12까지, 2026 수정본)에 있는 투구만 씁니다. 자세한 정의는 [data/research/README.md](../data/research/README.md)를 보세요.
+**표본:** 팀 공유 research CSV(투수-시즌 투구 수 ≥ 500, 2026은 ≥ 300, 2026-07-12까지)에 있는 투구만 씁니다. 자세한 정의는 [data/research/README.md](../data/research/README.md)를 보세요.
 
 ## 1. 데이터 파일
 
