@@ -1,14 +1,16 @@
 """Robustness comparison for the pitch-avoidance mixed-effects model:
 
 - ORIGINAL: catcher_changed included, random intercept & slope
-  (1 + group | pitcher) -- came out isSingular=TRUE (pitcher intercept
-  variance at the zero boundary), and catcher_changed was practically
-  unidentifiable (only 4 of 109,198 rows have catcher_changed=1 in the
-  research sample).
+  (1 + group | pitcher) -- came out isSingular=TRUE on the full raw sample
+  (pitcher intercept variance at the zero boundary). On the research sample
+  it is not flagged singular, but the group-slope variance is ~0 (0.0007), so
+  its per-pitcher slopes are not interpretable. catcher_changed was
+  practically unidentifiable (only 4 of 109,536 rows have catcher_changed=1
+  in the research sample).
 - ROBUSTNESS: catcher_changed dropped, random slope only
   (0 + group | pitcher).
 
-Both are fit on the exact same 109,198-row combined dataset, and this
+Both are fit on the exact same 109,536-row combined dataset, and this
 script reports: a side-by-side fixed-effects table, both models'
 convergence/variance components, the Pearson/Spearman correlation between
 the two models' per-pitcher random group-slopes, the robustness model's

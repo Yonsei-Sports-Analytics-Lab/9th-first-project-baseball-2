@@ -32,6 +32,12 @@ INDEX_COLUMNS = KEY_COLUMNS + ["pitch_type"]
 
 def list_research_csvs(csv_dir: Path = RESEARCH_SAMPLE_DIR) -> list[Path]:
     csv_files = sorted(Path(csv_dir).glob(CSV_GLOB))
+    misnamed = sorted(set(Path(csv_dir).glob("statcast_*.csv")) - set(csv_files))
+    if misnamed:
+        raise ValueError(
+            f"이름이 {CSV_GLOB} 형식이 아니라 무시될 CSV가 있습니다: {[path.name for path in misnamed]}. "
+            "다운로드하며 붙은 ' (1)' 같은 접미사를 떼고 원래 파일명으로 저장하세요 (연도 하나가 조용히 빠지는 것을 막기 위한 검사입니다)."
+        )
     if not csv_files:
         raise FileNotFoundError(
             f"'{csv_dir}' 아래에 {CSV_GLOB} 파일이 없습니다. 팀 공유 research CSV를 data/research/ 에 넣거나 "

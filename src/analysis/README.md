@@ -62,4 +62,4 @@ python -m src.analysis.run_mixed_effects_model_comparison
 * 재대결 기준 이벤트: `pitch_reuse_after_xbh_same_batter_rematch_events.parquet`, `pitch_reuse_placebo_same_batter_rematch_events.parquet`
 * 재대결 기준 투수별 랜덤효과: `pitch_avoidance_same_batter_rematch_random_effects.csv`
 
-**참고:** `catcher_changed`는 정의상 "같은 투수가 던지는 바로 다음 타석" 구간(`has_next_ab=True`)에서만 계산되는데, 포수는 하프이닝 도중 거의 교체되지 않아 전체 표본(109,198건) 중 1이 4건뿐입니다. 회귀계수가 사실상 추정 불가능해서(표준오차가 매우 큼) `MODEL_FORMULA`에서 제외했습니다 — 원본 이벤트 데이터셋에는 컬럼 자체는 여전히 남아있습니다.
+**참고:** `catcher_changed`는 정의상 "같은 투수가 던지는 바로 다음 타석" 구간(`has_next_ab=True`)에서만 계산되는데, 포수는 하프이닝 도중 거의 교체되지 않아 전체 표본(109,536건) 중 1이 4건뿐입니다. 회귀계수가 사실상 추정 불가능해서(표준오차가 매우 큼) `MODEL_FORMULA`에서 제외했습니다 — 원본 이벤트 데이터셋에는 컬럼 자체는 여전히 남아있습니다.

@@ -68,6 +68,15 @@ def test_load_research_index_raises_when_no_csv_found(tmp_path):
         load_research_index(tmp_path, tmp_path / "cache.parquet")
 
 
+def test_load_research_index_raises_on_misnamed_csv_instead_of_silently_skipping_it(tmp_path):
+    rows = _csv_rows(_pitches())
+    _write_csv(tmp_path / "statcast_2021_min500_research.csv", rows)
+    _write_csv(tmp_path / "statcast_2026_min300_research (1).csv", rows)
+
+    with pytest.raises(ValueError, match=r"\(1\)"):
+        load_research_index(tmp_path, tmp_path / "cache.parquet")
+
+
 def test_load_research_index_raises_on_duplicate_keys(tmp_path):
     rows = _pitches().iloc[[0, 0]]
     _write_csv(tmp_path / "statcast_2021_min500_research.csv", _csv_rows(rows))
