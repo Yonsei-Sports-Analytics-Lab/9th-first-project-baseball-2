@@ -96,7 +96,7 @@
   * `analysis/`: 같은 타자 재대결 분석(메인), 다음 타자 기준 회피 가설 검증(시즌 baseline, placebo diff-in-diff), 혼합효과 로지스틱 회귀(R `lme4` 연동)
   * `models/`, `utils/`, `visualization/`: 아직 사용 전 (폴더별 README 참고)
 * `tests/`: 순수 함수 단위 테스트 (86개)
-* `docs/`: 작업 계획(`작업계획.md`), 파일별 역할(`파일구조.md`), 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
+* `docs/`: 작업 계획(`작업계획.md`), 파일별 역할(`파일구조.md`), 타구 질 추가 연구(`추가연구_타구질.md`), 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
 * `archive/`: 더 이상 결론에 쓰지 않는 이전 분석 (시행착오 기록)
 * `requirements.txt`: 프로젝트 실행에 필요한 파이썬 패키지 목록
 
