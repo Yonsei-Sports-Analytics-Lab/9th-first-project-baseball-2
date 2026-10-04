@@ -82,11 +82,24 @@ xwOBA의 변화에 따라 해당 구종의 직후 타석 사용 변화가 어떻
 이를 통해 동일한 결과 내에서도 더 높은 타구 질을 허용한 경우,
 이후 해당 구종의 사용 변화가 더 크게 나타나는지를 확인한다.
 
+Q1: xWOBA 값 하위 25%, Q4 : xWOBA 값 상위 25%
+
 > **첨부 자료 및 분석 결과**
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/bebe82b9-6936-4431-adf1-b0986d209d3d" />
+
+out: Q1~Q3는 오히려 직후 타석에서 해당 구종 사용률이 증가하였지만, Q4는 직후 타석에서 해당 구종 사용률이 감소함
+        -->**결과는 아웃이어도 잘 맞은 아웃이면 다음 타석에서 그 구종을 덜 신뢰하는 방향의 패턴** 발견
+        
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/9bb3fd75-9e59-4ea5-b8dd-ab518e1e03af" />
+
+single: Q1→Q3에서 타구 질이 좋아질수록 사용률 감소가 크게 나타나고, Q3~Q4에서는 비슷한 수준으로 유지
+              -->**낮은 xwOBA에서는 거의 변화가 없지만, xwOBA가 높아질수록 직후 타석에서 해당 구종의 사용 감소가 크게 나타남**
+              
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/f66bbf5b-525c-4d2c-8460-2ed9cb43bc3d" />
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/9d0fa5c4-fe71-4704-bac5-7ad8c85c3053" />
+
+Double, Home Run: 모든 xwOBA 구간에서 이미 큰 폭의 사용 감소가 나타났으며, 높은 xwOBA가 추가적인 감소로 이어지는 패턴은 상대적으로 제한적
+-->이후 구종 선택의 변화가 타구 질과 관련되는 동시에, **장타와 같이 강한 결과에서는 타석 결과 자체와의 관계가 더 크게 나타날 가능성**
 
 
 ---
@@ -120,12 +133,19 @@ xwOBA의 변화에 따라 해당 구종의 직후 타석 사용 변화가 어떻
 
 재대결은 **동일 시즌 내 동일 투수-타자 간 다음 맞대결**로 정의하였다.
 
-> **첨부 자료 및 분석 결과 추가 예정**
-<img width="915" height="595" alt="image" src="https://github.com/user-attachments/assets/e6e83518-b6d9-4765-8859-ffc4c54d85d1" />
-<img width="881" height="592" alt="image" src="https://github.com/user-attachments/assets/8b747aae-ef4c-4f6f-bb16-7480d01caa86" />
-<img width="690" height="489" alt="image" src="https://github.com/user-attachments/assets/6d479df4-8321-48c6-a51e-23650db50d84" />
-<img width="690" height="489" alt="image" src="https://github.com/user-attachments/assets/a6cbfdd3-4f10-40f6-8a28-b99f8f288a9b" />
+**첨부 자료 및 분석 결과**
+<img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/321d9a3a-0932-462f-b724-e59cf971f966" />
+out : 전반적으로 해당 구종의 재대결 사용률이 baseline보다 높았으나, 타구 질이 높아질수록 이러한 사용 증가가 감소하는 패턴이 나타났다.
+ -->**아웃을 잡았다고 하더라도 잘 맞은 아웃일수록 그 구종을 다시 적극적으로 사용하는 정도가 줄어드는 모습**
 
+<img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/020463a2-31ed-4704-8ed4-0f1c4f81fd2f" />
+single : xwOBA가 높아질수록 재대결에서 해당 구종의 사용률이 크게 감소하는 패턴이 나타났다. 특히 낮은 타구 질의 Single에서는 사용 증가가 나타난 반면, 높은 타구 질에서는 뚜렷한 사용 감소로 전환되었다.
+
+<img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/45cc22e6-cd96-4487-8e9d-f2c2c7527cfd" />
+Double: 모든 xwOBA 구간에서 해당 구종의 재대결 사용 감소가 나타났으며, 타구 질이 높아질수록 감소 폭이 더욱 커지는 패턴이 관찰되었다.
+
+<img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/ac54cd77-6bbe-4a1a-b643-eabc610facc9" />
+Homerun : xwOBA 수준과 관계없이 모든 구간에서 약 11~13%p의 매우 큰 구종 사용 감소가 나타났으며, xwOBA 증가에 따른 추가적인 감소는 상대적으로 작았다.
 
 ---
 
