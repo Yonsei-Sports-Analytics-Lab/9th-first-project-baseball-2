@@ -14,3 +14,4 @@
 * `pitch_trajectory.py`: 투구 무브먼트(`pfx_x`, `pfx_z`) 데이터를 활용해 스트라이크 존 내 탄착군 및 궤적을 SVG 포맷으로 렌더링하는 스크립트
 * `dashboard_formatter.py`: React 기반 대시보드에서 효율적으로 데이터를 렌더링할 수 있도록, 분석 결과를 JSON 포맷으로 변환하고 상태(State) 관리에 적합하게 가공하는 모듈
 * `tableau_export.py`: Tableau 시각화를 위해 필요한 요약 통계량(예: 투수별 구종 구사율 등)을 집계하여 추출하는 스크립트
+* `pitch_type_reuse_plots.py`: (실제 구현) 구종별 재구사율 감소 요약 표(`data/processed/pitch_type_reuse_rate_reduction.csv`)를 입력받아 사전→재대결 구사율 이동, 대조군 보정 감소(%p·상대 감소율), 재사용률 비교 그림 3장을 `data/processed/figures/`에 저장합니다 (`python -m src.visualization.pitch_type_reuse_plots`). 이미지는 커밋하지 않습니다.

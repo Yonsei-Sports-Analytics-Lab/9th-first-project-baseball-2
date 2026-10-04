@@ -1,0 +1,10 @@
+pandas
+pyarrow
+pybaseball
+pytest
+scipy
+statsmodels
+rpy2
+matplotlib
+ipykernel
+nbconvert

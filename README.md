@@ -1,6 +1,84 @@
-# ⚾ [투수의 장타 허용 후 다음 타석에서의 구종 사용 변화]
+# ⚾ 투수의 장타 허용 후 다음 타석에서의 구종 사용 변화
 
-이 프로젝트는 [투수의 장타 허용 후 다음 타석에서의 구종 사용 변화]에 대해 분석하는 것을 목표로 합니다.
+투수가 장타(2루타·3루타·홈런)를 허용한 뒤, **같은 경기에서 그 타자와 다시 맞붙는 재대결 타석에서 방금 맞은 구종을 회피하는가?** 를 MLB Statcast 투구 데이터로 검증하는 프로젝트입니다. 같은 타자 재대결이 **메인 분석**이고, "바로 다음에 상대하는 타자" 기준 분석은 회피 효과의 존재를 먼저 확인한 **보조 분석**입니다.
+
+> 📋 앞으로의 작업 순서는 [docs/작업계획.md](docs/작업계획.md)를 보세요. 대조군 설정에 문제가 있던 초기 분석은 [archive/01_초기분석/](archive/01_초기분석/README.md)에 시행착오로 보관했습니다.
+
+---
+
+## 🔎 연구 질문과 관찰 설계
+
+* **장타 이벤트:** `events ∈ {double, triple, home_run}` 인 투구 (70,319건)
+* **메인 — 같은 타자 재대결:** 장타를 맞은 타자의 같은 경기 바로 다음 타석을 같은 투수가 다시 상대한 경우(`next_pa_mode="same_batter"`). 장타 70,319건 중 27,391건(39.0%), 구종 결측을 뺀 27,371건
+* **보조 — 다음 타자:** 같은 `game_pk`, 같은 투수, `at_bat_number + 1` 인 타석 — 항상 **다른 타자**이며, 투수 교체 등으로 없으면 `has_next_ab = False`(전체의 6.1%, 분석 제외). 66,052건
+* **핵심 변수:** `baseline_usage`(그 경기에서 해당 투구 이전까지 그 구종 사용 비중), `same_type_share`(비교 타석에서 그 구종 비중), `reused_same_type`(비교 타석에 한 번이라도 다시 던졌는지, 0/1). 시즌 전체 구사율(`season_usage_rate`)을 더 안정적인 baseline으로도 사용
+* **구종 계열(`pitch_family`):** fastball(FF·SI·FT·FA·FC) / breaking(SL·ST·CU·KC·CS·SV·SC) / offspeed(CH·FS·FO·EP·KN), 미분류는 `other`
+* **대조군(placebo):** `field_out` 이벤트를 장타 그룹의 season × pitch_family 분포에 맞춰 층화추출(seed 고정)하고, 장타와 **완전히 동일한 코드 경로**로 같은 변수를 계산. 메인 분석의 대조군은 같은 타자 재대결이 가능한 `field_out`만 후보로 삼음
+
+---
+
+## 📌 핵심 결과 (2026-09-25 기준)
+
+데이터: 팀 공유 research CSV 표본 — 2021 시즌 ~ 2026-07-12 정규시즌, 투수-시즌 투구 수 500 이상(2026은 300 이상)인 투수 1,067명의 투구 3,592,302건 ([Google Drive](https://drive.google.com/drive/folders/1nP5Z0f7q1cNftgKkVTsWe329ishi8iUM), [정의](data/research/README.md)). 아래 수치는 모두 이 표본 기준입니다.
+
+### 메인: 같은 타자 재대결 (장타 27,371건 vs 대조군 `field_out` 27,371건)
+
+| 단계 | 결과 |
+|---|---|
+| ① 시즌 전체 구사율 baseline 대비 (대조군 없음) | 사용 비중 29.5% → 18.5%, **−11.0%p** (p≈0) |
+| ② 대조군 넷팅 diff-in-diff, 시즌 baseline | 장타 −11.0%p vs 대조군 +3.6%p → **순수 감소 14.6%p** (95% CI [14.2, 15.1], p≈0) |
+| ③ 대조군 넷팅, 경기 내 baseline | 장타 −15.6%p vs 대조군 −0.1%p → **순수 감소 15.6%p** (95% CI [15.1, 16.1], p≈0) |
+| ④ 재사용률 | 장타 45.5% vs 대조군 67.9% (χ² p≈0) |
+| ⑤ 혼합효과 로지스틱 회귀 | `group` 오즈비 **0.286**(평균 baseline에서 약 0.36), `group × baseline_usage` 오즈비 **1.985** (p<0.001) |
+
+* 구종 계열별 순수 감소(시즌 baseline)는 fastball(13.8%p)·breaking(15.6%p)·offspeed(16.4%p) 모두 약 14–16%p입니다.
+* 시즌별 감소폭(시즌 baseline, 대조군 없음)은 6개 시즌 모두 약 −10.5%p ~ −11.3%p로 일관됩니다.
+
+  | Season | Events | Baseline | Post | Diff |
+  |---|---|---|---|---|
+  | 2021 | 4,682 | 32.34% | 21.10% | −11.24%p |
+  | 2022 | 4,618 | 30.57% | 19.29% | −11.27%p |
+  | 2023 | 5,279 | 30.46% | 19.32% | −11.14%p |
+  | 2024 | 4,974 | 28.45% | 18.00% | −10.45%p |
+  | 2025 | 4,915 | 28.02% | 17.05% | −10.97%p |
+  | 2026 | 2,903 | 26.14% | 15.25% | −10.89%p |
+
+* ⑤ 해석: 장타를 맞으면 재사용 오즈가 대조군보다 크게 낮아지고, 평소 그 구종 의존도가 높을수록 회피 효과가 약해집니다(대체할 구종이 마땅치 않으면 못 피함). 표본 53,804행(장타 26,846 + 대조군 26,958, 경기 내 baseline 결측 제외), 투수 719명, 투수별 기울기 분산 0.0676, 수렴 정상·isSingular 아님.
+* 범석님 노트북(Python, 시즌 baseline)과 이 저장소의 독립 재구현은 `data/raw` 전체를 기준으로 교차검증해 일치했습니다: 재대결 건수는 시즌별 1–7건 차이, 시즌 baseline은 0.02%p 이내, 시즌별 감소폭은 최대 0.10%p 차이.
+* 재구현 스크립트: `src/analysis/run_same_batter_rematch_analysis.py` (투수별 랜덤효과는 `data/processed/pitch_avoidance_same_batter_rematch_random_effects.csv`, 로컬 전용).
+
+**추가 검증 (같은 스크립트와 `run_intensive_margin_analysis.py`)**
+
+| 검증 | 결과 |
+|---|---|
+| ⑥ 동타/이타(platoon) 혼합모델 | `platoon_match` 오즈비 1.129 [1.065, 1.197] (p<0.001), `group × platoon_match` 오즈비 **0.982** [0.910, 1.059] (p=0.63) — 회피 효과가 동타/이타에 따라 다르다는 증거 없음 |
+| ⑦ 순수 감소 스플릿 (시즌 baseline) | 이타 14.0%p vs 동타 15.4%p, 타자 좌/우 14.4%p 대 14.7%p, 투수 좌/우 15.1%p 대 14.4%p. 구종별(표본 300건 이상)은 FF 12.1%p ~ SL 17.2%p |
+| ⑧ 투수 단위 매칭 (같은 투수×시즌×구종계열의 `field_out`만 대조군) | 장타의 99.3%(27,197건, 642명)가 1:1 매칭. 순수 감소 14.3%p / 15.1%p로 층화 매칭(14.6 / 15.6)보다 0.4%p 안팎 작지만 같은 방향, `group` 오즈비 0.290 대 0.286, `group × baseline_usage` 1.96 대 1.99(둘 다 p<0.001), 투수별 랜덤 기울기 상관 Pearson 0.997 / Spearman 0.995 |
+| ⑨ 구종별 회피 (9개 구종, `run_pitch_type_avoidance_analysis.py`) | 전 구종에서 회피(`group` 오즈비 0.22–0.47, 모두 CI가 1에서 멀음), 구종에 따라 강도가 다름(우도비 검정 χ²=153.2, df=8, p<0.001). FF가 가장 약하고(0.47) CU·CH·FC·SL이 가장 강함(0.22–0.27) |
+| ⑩ 구종별 재구사율 감소 (7개 구종 FF·SI·SL·CH·FC·CU·ST, `run_pitch_type_reuse_rate_analysis.py`) | 재대결 구사율이 사전 대비 장타 후 크게 줄고(전체 29.9% → 18.9%), 대조군 보정 순수 감소는 포심 12.1%p ~ 슬라이더 17.2%p(전체 14.6%p), 상대 감소율은 포심 31% ~ 커브 65%(전체 43%). 재사용률은 장타 46.2% vs 대조군 68.4% |
+| ⑪ Intensive margin (재사용한 이벤트만: 장타 12,459건, 대조군 18,579건) | 대조군 대비 변화(`group × time`): 코스 **+0.021 ft** [0.011, 0.031] (p=0.0001, 약 0.25인치), 무브먼트 +0.0014 ft (p=0.24), 구속 +0.020 mph [0.0002, 0.039] (p=0.048, 경계선 — 아래 참고) |
+
+* ⑪의 대조군 없는 pre→post 구속 변화는 −0.29 mph(이벤트 랜덤효과를 넣으면 −0.32 mph)이지만 대조군도 −0.33 mph 떨어집니다. 경기가 진행되며(피로 등) 생기는 변화이고 장타에 대한 반응이 아닙니다. 그래서 Intensive margin은 대조군 대비 값을 기준으로 봅니다.
+* 코스 변화는 통계적으로는 유의하지만 편차 표준편차(0.52 ft)의 약 3.9%로 실질 크기는 아주 작습니다. 무브먼트에서는 유의한 변화가 없습니다. 구속은 p=0.048로 5% 안쪽이지만 신뢰구간 하한이 0.0002 mph로 0에 붙어 있고 효과 크기(+0.020 mph)는 편차 표준편차(1.25 mph)의 약 1.6%입니다. 표본 구성(투구량 컷오프, 2026 포함 기간)을 바꿔 보면 p값이 0.05 안팎에서 0.8 근처까지 움직여 안정적인 결과가 아닙니다. 세 지표를 함께 검정하는 점까지 고려하면 "구속이 바뀐다"는 근거로 쓰기 어렵고, 코스·무브먼트·구속 모두 실질적 변화는 작다고 보는 편이 안전합니다.
+* 변수 정의와 결측 처리는 [docs/variable_spec.md](docs/variable_spec.md)에 정리했습니다.
+
+### 보조: 다음 타자 기준 (장타 64,736건 vs 대조군 44,800건)
+
+| 단계 | 결과 |
+|---|---|
+| ① 경기 내 baseline 대비 (noisy, 대조군 없음) | 사용 비중 35.4% → 25.4%, **−10.0%p** (p≈0) |
+| ② 시즌 전체 구사율 baseline 대비 | 31.7% → 25.6%, **−6.1%p** (p≈0) — 평균회귀 일부 확인 |
+| ③ 대조군(field_out) 넷팅 diff-in-diff | 장타 −10.03%p vs 대조군 −2.45%p → **순수 감소 7.58%p** (95% CI [7.21, 7.95], p≈0), ①의 75.6% |
+| ④ 혼합효과 로지스틱 회귀 | `group` 오즈비 **0.569** (p≈1e-95), `group × baseline_usage` 오즈비 **1.214** (p=0.005) |
+| ⑤ robustness (랜덤효과 구조 단순화) | 원본 공식(`(1 + group \| pitcher)`, `catcher_changed` 포함)은 isSingular=False로 수렴했지만 기울기 분산이 0.0007로 사실상 0이고 절편-기울기 상관은 −0.63입니다. `catcher_changed`(4건)는 추정할 수 없습니다(오즈비 0.37, p=0.37). 단순화 모델은 singular가 아니고(기울기 분산 0.0569) `group` 오즈비도 방향·유의성이 같아(원본 0.531 대 0.569) 메인 공식으로 유지. 다만 두 모델의 투수별 기울기는 서로 일치하지 않고 오히려 반대 방향입니다(Pearson −0.82 / Spearman −0.80). 원본은 기울기 분산이 거의 0이라 투수별 기울기에 담긴 정보가 거의 없으므로 투수별 순위는 단순화 모델로만 보세요 |
+
+* 모델: `reused_same_type ~ group * baseline_usage + balls + strikes + outs_when_up + score_diff + stand + pitch_family + factor(season) + (0 + group | pitcher)`, R `lme4::glmer`(nAGQ=0, bobyqa). 표본 109,536행, 투수 1,067명. 예측확률 10분위 calibration은 전 구간에서 근접(차이 최대 3.5%p).
+* 투수별 회피 성향(랜덤 기울기)은 `data/processed/pitch_avoidance_mixed_model_random_effects.csv`에 저장(로컬 전용).
+
+### 두 분석의 관계
+
+* 표본과 모집단이 달라 수치를 평균내거나 그대로 합칠 수 없습니다.
+* 참고로 경기 내 baseline 기준 순수 감소는 재대결 15.6%p, 다음 타자 7.58%p이고 혼합모델 `group` 오즈비는 0.286 대 0.569입니다. 다만 재대결은 타자가 다시 타석에 설 때까지 투수가 남아 있는 경우로 한정돼 모집단(투수 유형, 경기 시점 등)이 다르므로, 이 차이가 "그 타자에 대한 맞춤 조정" 때문인지는 아직 분리되지 않았습니다.
 
 ---
 
@@ -8,31 +86,48 @@
 
 협업 시 충돌을 방지하고 코드의 가독성을 높이기 위해 아래의 디렉토리 구조를 엄격히 준수합니다.
 
-* `data/raw/`: 원본 데이터 파일 보관 (수정 절대 금지)
-* `data/processed/`: 전처리 및 정제가 완료된 데이터 보관
+* `data/raw/`: 원본 데이터 파일 보관 (수정 절대 금지) — 팀 공유 research CSV 6개(점수 컬럼 포함, [설명](data/raw/README.md)). `src/` 파이프라인용 `{year}/{month}.parquet` 월별 파일도 이 폴더에 둡니다
+* `data/research/`: `data/raw`의 CSV를 가리키는 심볼릭 링크 (git 제외, [만드는 법](data/raw/README.md)). 분석 코드는 이 이름으로 CSV를 찾습니다
+* `data/processed/`: 전처리 및 정제가 완료된 데이터, 분석 결과 CSV 보관
 * `notebooks/`: 탐색적 데이터 분석(EDA) 및 실험용 Jupyter Notebook
 * `src/`: 프로젝트의 핵심 로직을 담당하는 파이썬 모듈
+  * `collection/`: Statcast 월 단위 수집기 (재실행 시 이미 받은 달은 건너뜀, 일시 오류 시 재시도)
+  * `preprocessing/`: 이벤트 데이터셋 생성(`build_next_ab_dataset.py`, 다음 타자/같은 타자 재대결 두 모드), 구종 계열 분류, 분포 리포트, 전체 파이프라인(`data_pipeline.py`)
+  * `analysis/`: 같은 타자 재대결 분석(메인), 다음 타자 기준 회피 가설 검증(시즌 baseline, placebo diff-in-diff), 혼합효과 로지스틱 회귀(R `lme4` 연동)
+  * `models/`, `utils/`, `visualization/`: 아직 사용 전 (폴더별 README 참고)
+* `tests/`: 순수 함수 단위 테스트 (86개)
+* `docs/`: 작업 계획(`작업계획.md`), 파일별 역할(`파일구조.md`), 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
+* `archive/`: 더 이상 결론에 쓰지 않는 이전 분석 (시행착오 기록)
 * `requirements.txt`: 프로젝트 실행에 필요한 파이썬 패키지 목록
 
 ---
 
-## 🔒 분석 데이터셋 (고정)
+## 🚀 진행 현황 (Progress)
 
-모든 분석은 `data/raw/`의 **2021–2026 MLB Statcast 정규시즌 투구 데이터 6개 파일**(`statcast_{연도}_min500_research.csv`, 2026은 `min300`)로 고정합니다. 약 359만 구(3,592,302행), 시즌별 500구 이상 투수(2026은 07-12까지, 300구 이상) 기준입니다.
-
-파일 목록·기간·행 수·SHA-256 해시와 검증 방법은 [`data/raw/README.md`](data/raw/README.md)를 참고하세요. 데이터를 새로 수집하거나 교체하지 마세요.
+- [x] 데이터 수집 (2021–2026, 45개월)
+- [x] 분석 표본 확정: 팀 공유 research CSV (2021–2026-07-12, 투수-시즌 투구 수 500 이상, 2026은 300 이상)
+- [x] 회피 효과 실재 검증 — 다음 타자 기준(보조): 대조군 비교, diff-in-diff
+- [x] Extensive margin 혼합효과모델 — 다음 타자 기준(보조) 및 robustness 체크
+- [x] 메인 분석(같은 타자 재대결) 대조군 검증 + 혼합효과모델, 범석님 노트북과 교차검증
+- [x] 대조군/변수 정리: 동타/이타(platoon) 검정, 투수 단위 매칭 robustness, 변수 스펙 문서 (2026-09-24)
+- [x] Intensive margin (구종은 유지해도 코스·무브먼트·구속을 바꾸는지) (2026-09-24)
+- [ ] 가치모델 (RL 프레임 또는 run value 기반 GBM)
+- [ ] 사례연구 (회피 성향 상/하위 투수)
+- [ ] 최종 산출물 / 발표자료
 
 ---
 
-## 🚀 주요 진행 활동 (Project Activities)
+## 🧪 방법론 메모 및 한계
 
-프로젝트 기간 동안 팀원들은 각자의 역할에 따라 다음과 같은 작업들을 수행하게 됩니다. 아래는 예시 템플릿입니다.
-
-* **데이터 수집:** `pybaseball` 라이브러리 등을 활용하여 필요한 원본 지표와 데이터를 수집합니다.
-* **데이터 전처리:** 결측치 처리, 파생 변수 생성, 데이터 포맷 통일 등 모델링과 분석에 적합한 형태로 가공합니다.
-* **탐색적 데이터 분석(EDA):** 수집된 데이터를 바탕으로 유의미한 인사이트를 도출하고 시각화(Tableau, matplotlib 등)를 진행합니다.
-* **모델링 및 평가:** 딥러닝/머신러닝 기법을 적용하여 예측 모델을 설계하고 정확도를 평가합니다.
-* **시각화 및 프론트엔드 구축:** 분석 결과를 직관적으로 보여주기 위해 React와 SVG 등을 활용한 대시보드 화면을 개발할 수 있습니다.
+* `baseline_usage`는 한 경기 내 적은 투구 수로 계산돼 노이즈가 큽니다. 대조군 없이 나온 감소폭(−10.0%p, −15.6%p 등)을 그대로 인용하지 말고 대조군 보정치를 기준으로 사용하세요.
+* 메인 분석의 대조군은 시즌 baseline에서 오히려 사용 비중이 늘어납니다(+3.6%p). "아웃이라는 성공 때문에 다시 던진다"(성공 강화)가 아니라 "그 구종이 이 경기에서 이미 던져졌다"는 조건 자체 때문입니다. 결과와 무관한 첫 투구를 앵커로 한 표본도 +3.5%p, 삼진 +3.8%p, 볼넷 +2.5%p로 같은 양상이고, 단타 −3.7%p, 장타 −11.0%p로 결과가 나쁠수록 감소가 커집니다(`run_outcome_anchor_check.py`). 이 효과는 장타 그룹에도 똑같이 작용하고, `field_out` 대조군은 결과 무관 앵커와 사실상 같아(차이 +0.13%p) 대조군으로 걷어내는 게 맞습니다.
+* 대조군은 season × pitch_family 층화추출이라 투수, 이닝, 카운트, 주자 상황까지 매칭된 것은 아닙니다. 장타는 위기 상황과 함께 나오는 경우가 많아 "장타를 맞아서"와 "위기라서"가 섞였을 가능성이 있습니다(주자 상황은 수집하지 않음).
+* 다음 타자 분석에서 `has_next_ab`/`baseline_usage` 필터 후 표본 유지율이 장타(약 92%)보다 `field_out`(약 64%)이 훨씬 낮은데, 3아웃째로 이닝이 끝나는 경우 등이 원인으로 추정되며 선택 편향 가능성이 있습니다(`outs_when_up` 통제 등 추가 확인 필요).
+* `pitch_type`이 없는 투구는 구사율(분자·분모)에서 제외하고, 이벤트 투구의 구종이 결측인 장타(37건)는 재사용 지표를 NaN으로 둡니다. 비교 타석 안의 결측 구종 투구는 `same_type_share` 분모에 포함되는데, 범석님 노트북은 이를 제외해 시즌별 감소폭이 최대 0.10%p 달라지는 것으로 보입니다.
+* Intensive margin은 "다시 던진 이벤트"로만 조건을 걸기 때문에(재사용 자체가 결과의 일부) 선택 효과가 있을 수 있습니다. pre는 같은 경기 안의 이전 같은 구종 투구라 시간 경과(피로 등)와 섞이므로 대조군 대비 값(`group × time`)을 기준으로 해석하세요. 편차의 baseline에는 비교 대상 투구도 포함됩니다.
+* 분석 표본은 시즌 투구 수 500구 이상(2026은 300구 이상) 투수로 한정돼 투구량이 적은 투수(구원·신인 등)가 빠집니다. 수집한 `data/raw` 전체에는 투수 1,858명이 있는데 표본은 1,067명이지만 투구는 약 10%만 줄어듭니다. 제외된 투수-시즌만 따로 본 순수효과(시즌 baseline, 재대결 15.3%p [13.1, 17.5], 다음 타자 7.3%p [6.3, 8.3])는 포함된 쪽(14.2%p [13.8, 14.7], 6.8%p [6.4, 7.1])과 신뢰구간이 겹쳐 결론은 같았습니다. 다만 제외 투수의 구성(선발/구원 등)은 따로 분석하지 않았고, 2026은 07-12까지만 반영된 표본입니다.
+* `catcher_changed`(포수 교체 여부)는 모델에서 제외했습니다. `has_next_ab=True`는 하프이닝이 끊기지 않은 구간이라 포수 교체가 구조적으로 거의 없어(109,536건 중 4건) 계수를 추정할 수 없습니다. 컬럼 자체는 이벤트 데이터셋에 남아 있습니다.
+* 초기 스펙의 구종 계열 표기가 2분류/3분류로 엇갈려 3분류(fastball/breaking/offspeed)로 확정했습니다.
 
 ---
 
@@ -50,9 +145,56 @@
 
 ## 💻 시작하기 (Getting Started)
 
-프로젝트 환경을 로컬에 세팅하는 방법입니다.
-
 1. 저장소 클론: `git clone [저장소 URL]`
 2. 디렉토리 이동: `cd [저장소 이름]`
 3. 가상환경 생성 및 실행: (권장) `python -m venv .venv` 후 활성화
 4. 패키지 설치: `pip install -r requirements.txt`
+
+### 분석 재현 순서
+
+`data/raw`, `data/research`, `data/processed`는 `.gitignore` 대상이라 저장소에 없습니다. 팀 공유 research CSV 6개(`statcast_<연도>_min500_research_score.csv`)를 [공유 드라이브](https://drive.google.com/drive/folders/1nP5Z0f7q1cNftgKkVTsWe329ishi8iUM)에서 받아 `data/raw/`에 넣고 `data/research/`에 링크를 건 뒤([방법](data/raw/README.md)), 아래 순서로 로컬에서 다시 생성하세요 (모두 저장소 루트에서 실행). 이후 모든 단계는 `data/raw` 중 CSV에 있는 행만 씁니다(`src/preprocessing/research_sample.py`). CSV 위치를 바꾸려면 `RESEARCH_SAMPLE_DIR` 환경변수를 지정하세요. 파일명은 `statcast_<연도>_min<컷오프>_research.csv` 형식이어야 하며, 형식이 어긋난 `statcast_*.csv`(예: 다운로드하며 붙은 ` (1)`)가 있으면 로더가 에러로 알려 줍니다.
+
+```bash
+# 1. Statcast 수집 (2021-03 ~ 2026-07-14, 네트워크에 따라 약 10~20분). 중단돼도 재실행하면 이어서 받음
+python -m src.collection.statcast_scraper
+
+# 2. 이벤트 데이터셋 생성 + 구종 분포 리포트 (약 2분)
+python -m src.preprocessing.data_pipeline
+
+# 3. [메인] 같은 타자 재대결 분석 (baseline 2종 → placebo 넷팅 → 이진 지표 → 혼합효과 → platoon → 투수 단위 매칭, 약 3분)
+python -m src.analysis.run_same_batter_rematch_analysis
+
+# 3-1. [메인] Intensive margin (코스·무브먼트·구속 편차, 3.의 이벤트 파일을 재사용, 약 2분, R 필요)
+python -m src.analysis.run_intensive_margin_analysis
+
+# 3-2. [메인] 구종별 회피 (3.의 이벤트 파일을 재사용, 약 10초, R 필요)
+python -m src.analysis.run_pitch_type_avoidance_analysis
+
+# 3-3. [메인] 7개 구종 재구사율 감소 요약 + 그림 3장 (약 10초, R 불필요, 그림은 data/processed/figures/)
+python -m src.analysis.run_pitch_type_reuse_rate_analysis
+python -m src.visualization.pitch_type_reuse_plots
+
+# 3-4. [진단] 대조군 사용 비중이 왜 늘어나는지(성공 강화 vs 같은 경기 내 구종 지속) 결과별 앵커로 확인 (약 3분)
+python -m src.analysis.run_outcome_anchor_check
+
+# 4. [보조] 다음 타자 기준 회피 가설 검증 (경기 내 baseline → 시즌 baseline → placebo diff-in-diff)
+python -m src.analysis.run_pitch_avoidance_analysis
+
+# 5. [보조] 다음 타자 기준 혼합효과 로지스틱 회귀 / 원본 vs robustness 비교 (R 필요, 아래 참고)
+python -m src.analysis.run_mixed_effects_model
+python -m src.analysis.run_mixed_effects_model_comparison
+
+# 단위 테스트
+pytest
+```
+
+### R 환경 (혼합효과 모델용)
+
+`statsmodels`의 `MixedLM`은 로지스틱 랜덤효과를 지원하지 않아 R `lme4::glmer`를 `rpy2`로 호출합니다. macOS(Homebrew) 기준:
+
+```bash
+brew install r cmake   # cmake는 lme4 의존 패키지(nloptr) 빌드에 필요
+Rscript -e 'install.packages("lme4", repos="https://cloud.r-project.org")'
+```
+
+Homebrew R을 쓰면 실행 시 `Error importing in API mode ... Trying to import in ABI mode.` 메시지가 뜨지만 ABI 모드로 정상 동작하니 무시해도 됩니다. R이 없으면 재대결 분석 스크립트는 혼합효과 단계만 건너뜁니다.

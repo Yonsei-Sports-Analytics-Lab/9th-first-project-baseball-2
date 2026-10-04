@@ -20,6 +20,7 @@
   * `pitch_data_cleaned_v1.csv` (결측치 제거 완료)
   * `pitch_features_scaled_202603.csv` (스케일링 및 파생 변수 추가 완료)
   * `X_train_lstm.npy`, `y_train_lstm.npy` (LSTM 모델 입력용으로 형태 변환 완료)
+  * `pitch_reuse_after_xbh_events.csv` / `.parquet` (장타 허용 후 다음 타석 구종 재사용 이벤트 데이터셋)
 
 ## 🔄 전처리 실행 방법
 

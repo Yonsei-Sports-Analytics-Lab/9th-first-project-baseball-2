@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / 'data' / 'raw'
 PROC = ROOT / 'data' / 'processed'
 
@@ -31,7 +31,7 @@ CONTROL = ['out', 'strikeout', 'single']
 
 cols = ['game_date', 'game_pk', 'at_bat_number', 'pitch_number', 'pitcher', 'pitch_type', 'events']
 df = pd.concat(
-    [pd.read_csv(f, encoding='utf-8-sig', usecols=cols) for f in sorted(RAW.glob('statcast_*_research.csv'))],
+    [pd.read_csv(f, encoding='utf-8-sig', usecols=cols) for f in sorted(RAW.glob('statcast_*_research*.csv'))],
     ignore_index=True,
 )
 df['season'] = df['game_date'].str[:4].astype(int)

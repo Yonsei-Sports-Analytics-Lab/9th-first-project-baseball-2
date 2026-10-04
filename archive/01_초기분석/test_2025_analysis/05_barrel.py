@@ -14,13 +14,13 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 RAW = ROOT / 'data' / 'raw'
 PROC = ROOT / 'data' / 'processed'
 
 # ---- barrel flag of each PA's final pitch ----
 cols = ['game_pk', 'at_bat_number', 'pitch_number', 'events', 'launch_speed', 'launch_angle']
-df = pd.concat([pd.read_csv(f, encoding='utf-8-sig', usecols=cols) for f in sorted(RAW.glob('statcast_*_research.csv'))],
+df = pd.concat([pd.read_csv(f, encoding='utf-8-sig', usecols=cols) for f in sorted(RAW.glob('statcast_*_research*.csv'))],
                ignore_index=True)
 last = (df.dropna(subset=['events']).sort_values('pitch_number')
           .drop_duplicates(['game_pk', 'at_bat_number'], keep='last'))
