@@ -49,7 +49,7 @@
 > **첨부 자료 및 분석 결과**
 <img width="991" height="608" alt="image" src="https://github.com/user-attachments/assets/6c8b2d15-4870-45e7-8f44-c05e7152cdfb" />
 
-
+장타 허용 직후, 다음 타자를 상대할 때 해당 구종 사용률의 감소 정도(-6.00%p)가 1루타(-2.30%p), out(+0.91%p)에 비하여 크게 나타났다.
 
 
 ---
