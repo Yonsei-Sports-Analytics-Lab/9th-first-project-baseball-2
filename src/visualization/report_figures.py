@@ -18,14 +18,13 @@ from matplotlib.patches import FancyBboxPatch
 from src.analysis.avoidance_stats import compute_season_usage_rate
 from src.analysis.hit_quality import add_prior_game_usage, build_batted_ball_events
 from src.analysis.robust_inference import weighted_did
-from src.analysis.situation_matching import LADDER_STEPS, add_situation_columns
+from src.analysis.situation_matching import LADDER_LABELS, LADDER_STEPS, add_situation_columns
 from src.preprocessing.research_sample import list_research_csvs
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC_FIG = ROOT / "data" / "processed" / "figures"
 OUT = ROOT / "docs" / "figures"
 COPIED = {
-    "ladder_pure_reduction.png": "04_matching_ladder.png",
     "ladder_balance_smd.png": "05_balance_smd.png",
     "ladder_group_odds_ratio.png": "06_odds_ratio.png",
     "batter_specific_by_slot.png": "07_by_slot.png",
@@ -112,9 +111,38 @@ def basic_figure(path: Path, nums: dict) -> None:
     plt.close(fig)
 
 
+def ladder_figure(path: Path) -> None:
+    """M0-M3 net reduction from notebook 06 (weighted controls, pitcher-cluster CI): the report's numbers."""
+    d = pd.read_csv(ROOT / "data" / "processed" / "robust_pure_reduction.csv")
+    steps = list(LADDER_STEPS)
+    labels = {"same_batter": "재대결 (메인)", "next_batter": "다음 타자 (보조)"}
+    colors = {"same_batter": "#0072B2", "next_batter": "#D55E00"}
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), sharey=True)
+    for ax, (base, title) in zip(axes, [("season", "시즌 구사율 기준"), ("game", "경기 내 직전까지 구사율 기준")]):
+        for i, mode in enumerate(["same_batter", "next_batter"]):
+            m = d[(d["mode"] == mode) & (d["baseline"] == base)].set_index("step").loc[steps]
+            xs = [k + (i - 0.5) * 0.15 for k in range(len(steps))]
+            y = m["net_w"] * 100
+            ax.errorbar(xs, y, yerr=[y - m["ci_cluster_low"] * 100, m["ci_cluster_high"] * 100 - y],
+                        fmt="o-", capsize=4, color=colors[mode], label=labels[mode])
+            for x, v in zip(xs, y):
+                ax.annotate(f"{v:.1f}", (x, v), textcoords="offset points", xytext=(8, 2), fontsize=8, color=colors[mode])
+        ax.set_xticks(range(len(steps)), [f"{s}\n{LADDER_LABELS[s]}" for s in steps])
+        ax.set_title(title)
+        ax.axhline(0, color="grey", lw=0.8)
+        ax.grid(axis="y", alpha=0.3)
+    axes[0].set_ylabel("순수 감소 (%p, 투수 cluster 95% CI)")
+    axes[0].legend(loc="center", bbox_to_anchor=(0.5, 0.62))
+    fig.suptitle("매칭 단계별 순수 감소 (가중 대조군): 상황을 맞춰도 그대로")
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     design_figure(OUT / "02_design.png")
+    ladder_figure(OUT / "04_matching_ladder.png")
     nums = basic_numbers()
     basic_figure(OUT / "03_basic_avoidance.png", nums)
     for src, dst in COPIED.items():
