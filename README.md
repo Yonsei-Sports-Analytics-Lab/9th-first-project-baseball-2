@@ -153,13 +153,9 @@ xwOBA와 구종 사용 변화 사이의 관계가 타석 결과에 따라 다르
 종속변수(change) : 직후 타석 구종 사용률 - season baseline
 기준 : out event
 
-| 변수      | 계수    | p-value | 의미                         |
-| Intercept | +0.0143 | <.001   | Out이고 xwOBA=0일 때 +1.43%p |
-| Single    | -0.0103 | <.001   | Out보다 약 1.03%p 더 감소    |
-| XBH       | -0.0561 | <.001   | Out보다 약 5.61%p 더 감소    |
-| xwOBA     | -0.0241 | <.001   | Out에서 xwOBA가 1 증가할 때 2.41%p 추가 감소 |
-| Single × xwOBA |-0.0254 | <.001 | Single에서는 xwOBA 효과가 Out보다 2.54%p 더 음(-)의 방향|
-| XBH × xwOBA | +0.0045 | .135 | XBH에서는 xwOBA 효과가 Out과 유의하게 다르다고 보기 어려움 |
+<img width="741" height="435" alt="image" src="https://github.com/user-attachments/assets/a3dba97a-939f-47ae-a89f-7fbd19caffe5" />
+
+
 
 타석 결과 자체의 효과: XBH(장타)가 가장 큰 구종 사용 감소와 관련됐다(-5.61%p).
 타구 질(xwOBA)의 관계 : Out에서 음의 방향으로 나타났으며, Single에서는 이 관계가 Out보다 유의하게 더 강했다.
@@ -180,14 +176,8 @@ R² = 0.009 -> 이 변수들이 전체 구종 변화의 변동을 많이 설명�
 혹은 특정 타자와의 이후 맞대결에서도 지속적으로 나타나는지를 살펴본다.
 
 > **회귀분석 결과 및 해석**
-<img width="767" height="31" alt="image" src="https://github.com/user-attachments/assets/360c6b83-0331-483b-836b-44b3e323e3a3" />
-| 변수      | 계수    | p-value | 해석 |
-| Intercept | +0.0606 | <.001   | Out, xwOBA=0일 때 baseline 대비 +6.06%p |
-| Single    | -0.0232 | <.001   | Out보다 2.32%p 낮음 |
-| XBH       | -0.1052 | <.001   | Out보다 10.52%p 낮음 |
-| xwOBA     | -0.0914 | <.001   | Out에서 xwOBA 1 증가 시 9.14%p 감소 |
-| Single × xwOBA | -0.0146 | .002 | Single의 xwOBA 기울기가 Out보다 1.46%p 더 음(-)  |
-| XBH × xwOBA    | +0.0438 | <.001 | XBH의 xwOBA 기울기가 Out보다  4.38%p 덜 음(-) |
+<img width="685" height="484" alt="image" src="https://github.com/user-attachments/assets/cac66afe-d62e-4423-9b8b-bf5ed531c778" />
+
 
 XBH라는 결과 자체의 차이는 강하지만, XBH 내부의 타구 질이 높아질수록 회피가 더 강해진다는 단순한 관계는 관찰되지 않았다.
 R²: 직후 타석 0.009 → 재대결 0.030으로 상승--> 설명력 자체는 여전히 낮지만, 재대결 모델에서 상대적으로 더 많은 변동을 설명하고 있다
