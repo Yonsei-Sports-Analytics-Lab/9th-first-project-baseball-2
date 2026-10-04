@@ -135,16 +135,20 @@ Double, Home Run: 모든 xwOBA 구간에서 이미 큰 폭의 사용 감소가 �
 
 **첨부 자료 및 분석 결과**
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/321d9a3a-0932-462f-b724-e59cf971f966" />
+
 out : 전반적으로 해당 구종의 재대결 사용률이 baseline보다 높았으나, 타구 질이 높아질수록 이러한 사용 증가가 감소하는 패턴이 나타났다.
  -->**아웃을 잡았다고 하더라도 잘 맞은 아웃일수록 그 구종을 다시 적극적으로 사용하는 정도가 줄어드는 모습**
 
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/020463a2-31ed-4704-8ed4-0f1c4f81fd2f" />
+
 single : xwOBA가 높아질수록 재대결에서 해당 구종의 사용률이 크게 감소하는 패턴이 나타났다. 특히 낮은 타구 질의 Single에서는 사용 증가가 나타난 반면, 높은 타구 질에서는 뚜렷한 사용 감소로 전환되었다.
 
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/45cc22e6-cd96-4487-8e9d-f2c2c7527cfd" />
+
 Double: 모든 xwOBA 구간에서 해당 구종의 재대결 사용 감소가 나타났으며, 타구 질이 높아질수록 감소 폭이 더욱 커지는 패턴이 관찰되었다.
 
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/ac54cd77-6bbe-4a1a-b643-eabc610facc9" />
+
 Homerun : xwOBA 수준과 관계없이 모든 구간에서 약 11~13%p의 매우 큰 구종 사용 감소가 나타났으며, xwOBA 증가에 따른 추가적인 감소는 상대적으로 작았다.
 
 ---
