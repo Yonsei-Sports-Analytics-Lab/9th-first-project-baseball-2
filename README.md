@@ -2,7 +2,9 @@
 
 MLB 투수가 장타(2루타·3루타·홈런)를 맞은 뒤, **그 공의 구종을 이후에 덜 던지는가**를 Statcast 투구 데이터(2021–2026, 359만 구)로 검증하는 프로젝트입니다.
 
-> 📋 진행 순서는 [docs/작업계획.md](docs/작업계획.md), 파일 안내는 [docs/파일구조.md](docs/파일구조.md)를 보세요. 상세 수치와 방법은 보고서(작성 중)와 [docs/분석결과_상세.md](docs/분석결과_상세.md)에 있습니다.
+> 📄 **전체 내용은 [분석 보고서](docs/보고서.md)를 먼저 읽어 보세요.** 왜 이 분석을 했는지부터 결과·한계까지 그림과 함께 정리했습니다.
+>
+> 📋 진행 순서는 [docs/작업계획.md](docs/작업계획.md), 파일 안내는 [docs/파일구조.md](docs/파일구조.md)를 보세요.
 
 ---
 
@@ -11,12 +13,13 @@ MLB 투수가 장타(2루타·3루타·홈런)를 맞은 뒤, **그 공의 구�
 | # | 질문 | 답 | 근거 |
 |---|---|---|---|
 | 1 | 장타를 맞은 구종을 **같은 경기에서 그 타자를 다시 만났을 때** 덜 던지는가? | **예.** 비슷한 상황의 아웃(`field_out`) 뒤보다 약 **14%p** 덜 던지고, 다시 던질 오즈는 대조군의 약 **0.29배** | [노트북 03](notebooks/03_CY_matching_ladder_by_mode.ipynb) |
-| 2 | **경기 상황**(주자·아웃·이닝·카운트·점수차)을 맞춰도 남는가? | **예.** 대조군을 단계별로 맞춰도(M0 → M3) 14.39 → 14.34%p로 거의 그대로 | [노트북 03](notebooks/03_CY_matching_ladder_by_mode.ipynb) |
+| 2 | **경기 상황**(주자·아웃·이닝·카운트·점수차)과 **그날 그 구종의 상태**를 맞춰도 남는가? | **예.** 대조군을 단계별로 맞춰도(M0 → M3) 14.39 → 14.34%p로 거의 그대로. 그날 그 구종의 상태와 장타 맞은 공의 위치·구속까지 맞춰도 13.6%p 이상 남음 | [노트북 03](notebooks/03_CY_matching_ladder_by_mode.ipynb), [07](notebooks/07_CY_pitch_state_control.ipynb) |
 | 3 | **바로 다음 타자**에게도 피하는가? | **약하게 예.** 약 6.7%p로 재대결의 절반 이하. 단, 2아웃 장타는 비교할 대조군이 없어 빠지고, 다음 타석에 주자가 많은 차이가 섞임 | [노트북 03](notebooks/03_CY_matching_ladder_by_mode.ipynb) |
-| 4 | **결과**(장타) 때문인가, **타구 질**(잘 맞음) 때문인가? | **둘 다.** 잘 맞은 아웃도 피하고(배럴 아웃 +10.1%p), 타구 질이 같아도 결과가 나쁠수록 더 피함. 홈런은 타구 질과 무관하게 크게 피함 | [노트북 04](notebooks/04_CY_hit_quality_avoidance.ipynb) |
-| 5 | 그렇게 피한 것이 **투수에게 좋은 선택**이었나? | **아직 모름.** 다음 단계(Run Value 기반 평가, 회피 성향 상·하위 투수 사례) | [작업계획](docs/작업계획.md) |
+| 4 | 회피는 **장타를 친 그 타자**를 향한 것인가, 그 구종을 전반적으로 덜 쓰게 된 것인가? | **주로 그 타자.** 같은 장타 안에서 중간 타자들에게는 4.0%p, 그 타자와의 재대결에서는 13.5%p 더 피함(타자 맞춤 9.5%p). 장타 전에는 그 타자에게 오히려 그 구종을 더 던졌음 | [노트북 05](notebooks/05_CY_batter_specific_avoidance.ipynb) |
+| 5 | **결과**(장타) 때문인가, **타구 질**(잘 맞음) 때문인가? | **둘 다.** 잘 맞은 아웃도 피하고(배럴 아웃 +10.1%p), 타구 질이 같아도 결과가 나쁠수록 더 피함. 홈런은 타구 질과 무관하게 크게 피함 | [노트북 04](notebooks/04_CY_hit_quality_avoidance.ipynb) |
+| 6 | 그렇게 피한 것이 **투수에게 좋은 선택**이었나? | **아직 모름.** 다음 단계(Run Value 기반 평가, 회피 성향 상·하위 투수 사례) | [작업계획](docs/작업계획.md) |
 
-**한 줄 요약:** 투수는 장타를 맞은 구종을 그 타자에게 확실히 덜 던지고, 이 경향은 경기 상황을 맞춰도 남으며, 결과와 타구 질 모두에 반응합니다. 이것이 좋은 선택이었는지가 다음 질문입니다.
+**한 줄 요약:** 투수는 장타를 맞은 구종을 **그 타자에게** 확실히 덜 던지고, 이 경향은 경기 상황을 맞춰도 남으며, 결과와 타구 질 모두에 반응합니다. 이것이 좋은 선택이었는지가 다음 질문입니다.
 
 ### 용어
 
@@ -36,14 +39,14 @@ MLB 투수가 장타(2루타·3루타·홈런)를 맞은 뒤, **그 공의 구�
 * `data/raw/`: 원본 데이터 파일 보관 (수정 절대 금지) — 팀 공유 research CSV 6개(점수 컬럼 포함, [설명](data/raw/README.md)). `src/` 파이프라인용 `{year}/{month}.parquet` 월별 파일도 이 폴더에 둡니다
 * `data/research/`: `data/raw`의 CSV를 가리키는 심볼릭 링크 (git 제외, [만드는 법](data/raw/README.md)). 분석 코드는 이 이름으로 CSV를 찾습니다
 * `data/processed/`: 전처리 및 정제가 완료된 데이터, 분석 결과 CSV 보관
-* `notebooks/`: 실험 노트북. `01`·`02` 상황 매칭 대조군·재대결 실행 변화, **`03` M0~M3 사다리(재대결·다음 타자 분리)**, **`04` 타구 질과 회피**
+* `notebooks/`: 실험 노트북. `01`·`02` 상황 매칭 대조군·재대결 실행 변화, **`03` M0~M3 사다리(재대결·다음 타자 분리)**, **`04` 타구 질과 회피**, **`05` 타자 맞춤 회피 점검**, **`06` 신뢰구간 재계산(투수 cluster)**, **`07` 그날 구종 상태 통제**
 * `src/`: 프로젝트의 핵심 로직을 담당하는 파이썬 모듈
   * `collection/`: Statcast 월 단위 수집기 (재실행 시 이미 받은 달은 건너뜀, 일시 오류 시 재시도)
   * `preprocessing/`: 이벤트 데이터셋 생성(`build_next_ab_dataset.py`, 다음 타자/같은 타자 재대결 두 모드), 구종 계열 분류, 분포 리포트, 전체 파이프라인(`data_pipeline.py`)
   * `analysis/`: 같은 타자 재대결 분석(메인), 다음 타자 기준 회피 가설 검증(시즌 baseline, placebo diff-in-diff), 혼합효과 로지스틱 회귀(R `lme4` 연동), 상황 매칭 사다리(`situation_matching.py`), 타구 질(`hit_quality.py`)
   * `models/`, `utils/`, `visualization/`: 아직 사용 전 (폴더별 README 참고)
-* `tests/`: 순수 함수 단위 테스트 (98개)
-* `docs/`: 작업 계획(`작업계획.md`), 파일별 역할(`파일구조.md`), 타구 질 추가 연구(`추가연구_타구질.md`), 상세 결과 보관본(`분석결과_상세.md`), 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
+* `tests/`: 순수 함수 단위 테스트 (107개)
+* `docs/`: **분석 보고서(`보고서.md`, 그림 `figures/`)**, 작업 계획(`작업계획.md`), 파일별 역할(`파일구조.md`), 타구 질 추가 연구(`추가연구_타구질.md`), 상세 결과 보관본(`분석결과_상세.md`), 변수 스펙(`variable_spec.md`), 초기 구현 계획서(`superpowers/plans/`)
 * `archive/`: 더 이상 결론에 쓰지 않는 이전 분석 (시행착오 기록)
 * `requirements.txt`: 프로젝트 실행에 필요한 파이썬 패키지 목록
 
@@ -57,7 +60,8 @@ MLB 투수가 장타(2루타·3루타·홈런)를 맞은 뒤, **그 공의 구�
 - [x] 검증: 동타/이타, 투수 단위 매칭, 구종별, 시즌별, intensive margin(코스·무브먼트·구속)
 - [x] 상황 통제: M0~M3 매칭 사다리(점수차 포함), 재대결·다음 타자 분리 (2026-10-05)
 - [x] 타구 질: xwOBA·배럴과 결과의 효과 분리 (2026-10-05)
-- [ ] 보고서: 지금까지의 분석 전체를 그래프·표와 함께 정리
+- [x] 점검: 타자 맞춤 회피, 그날 구종 상태, 투수 cluster 신뢰구간 (2026-10-05)
+- [x] 보고서: [docs/보고서.md](docs/보고서.md) (2026-10-05)
 - [ ] 회피의 합리성 평가 (Run Value 기반 GBM)
 - [ ] 사례연구 (회피 성향 상/하위 투수)
 
@@ -120,7 +124,13 @@ python -m src.analysis.run_mixed_effects_model_comparison
 cd notebooks
 jupyter nbconvert --to notebook --execute --inplace 03_CY_matching_ladder_by_mode.ipynb   # 약 8분
 jupyter nbconvert --to notebook --execute --inplace 04_CY_hit_quality_avoidance.ipynb     # 약 1분
+jupyter nbconvert --to notebook --execute --inplace 05_CY_batter_specific_avoidance.ipynb # 약 3분
+jupyter nbconvert --to notebook --execute --inplace 06_CY_robust_inference.ipynb          # 약 2분 (03 결과 CSV 필요)
+jupyter nbconvert --to notebook --execute --inplace 07_CY_pitch_state_control.ipynb       # 약 1분
 cd ..
+
+# 7. 보고서 그림 (docs/figures/)
+python -m src.visualization.report_figures
 
 # 단위 테스트
 pytest
