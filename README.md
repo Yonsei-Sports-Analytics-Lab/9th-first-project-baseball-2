@@ -82,7 +82,7 @@ xwOBA의 변화에 따라 해당 구종의 직후 타석 사용 변화가 어떻
 이를 통해 동일한 결과 내에서도 더 높은 타구 질을 허용한 경우,
 이후 해당 구종의 사용 변화가 더 크게 나타나는지를 확인한다.
 
-> **첨부 자료 및 분석 결과 추가 예정**
+> **첨부 자료 및 분석 결과**
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/bebe82b9-6936-4431-adf1-b0986d209d3d" />
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/9bb3fd75-9e59-4ea5-b8dd-ab518e1e03af" />
 <img width="790" height="490" alt="image" src="https://github.com/user-attachments/assets/f66bbf5b-525c-4d2c-8460-2ed9cb43bc3d" />
