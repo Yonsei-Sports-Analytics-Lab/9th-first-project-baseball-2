@@ -82,7 +82,9 @@ SHAP 값의 방향은 다음과 같이 해석하였다.
 
 각 변수의 상대적 중요도는 **Mean Absolute SHAP Value**를 이용하여 비교하였다.
 
-![SHAP Feature Importance](./images/final_gbm_shap_importance_clean.png)
+<img width="804" height="1140" alt="image" src="https://github.com/user-attachments/assets/92770415-7a12-46ef-9ed9-add82ac48294" />
+
+
 
 Mean Absolute SHAP Value가 클수록 해당 변수가 GBM의 `usage_change` 예측값을 변화시키는 평균적인 영향의 크기가 크다는 것을 의미한다.
 
@@ -111,7 +113,8 @@ Mean Absolute SHAP Value가 클수록 해당 변수가 GBM의 `usage_change` 예
 
 ### 2.3 SHAP Summary
 
-![SHAP Summary](./images/final_gbm_shap_summary.png)
+<img width="807" height="1139" alt="image" src="https://github.com/user-attachments/assets/f9ed0d64-be6e-462a-9570-dc677ffd7bc8" />
+
 
 SHAP Summary Plot을 통해 각 변수의 상대적 중요도뿐만 아니라 변수 값에 따른 예측 방향을 함께 확인하였다.
 
@@ -141,7 +144,8 @@ Home Run 여부의 SHAP 분포를 살펴보면, Home Run에 해당하는 이벤�
 
 Score Difference는 **Mean |SHAP| = 0.0085**로 두 번째로 높은 중요도를 보였다.
 
-![Score Difference SHAP](./images/gbm_score_diff_shap.png)
+<img width="585" height="453" alt="image" src="https://github.com/user-attachments/assets/a3b272f1-0564-4cff-bb40-352c4e7b3e3e" />
+
 
 Score Difference와 SHAP 값 사이에서는 단순한 선형관계가 아닌 **비선형적 관계**가 나타났다.
 
@@ -154,7 +158,8 @@ Score Difference와 SHAP 값 사이에서는 단순한 선형관계가 아닌 **
 
 Launch Speed는 **Mean |SHAP| = 0.0076**으로 세 번째로 높은 중요도를 보였다.
 
-![Launch Speed SHAP](./images/gbm_launch_speed_shap.png)
+<img width="790" height="590" alt="image" src="https://github.com/user-attachments/assets/6d148357-5a8b-4ff2-8cd0-21f93aa6bf8f" />
+
 
 Launch Speed가 증가할수록 SHAP 값이 대체로 감소하는 패턴이 나타났다.
 
